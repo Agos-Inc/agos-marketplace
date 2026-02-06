@@ -25,8 +25,11 @@ This document is the execution handbook for building Claw Marketplace from zero 
 ### 3.2 Local Infrastructure
 
 1. Start `PostgreSQL` and `Redis` through `infra/docker-compose.yml`.
-2. Run DB migration and seed scripts.
-3. Validate connectivity from API and worker.
+2. Create env files from examples (at least `apps/api/.env`).
+3. Run Prisma schema sync:
+   - `pnpm --filter @agos/api prisma:generate`
+   - `pnpm --filter @agos/api prisma:push`
+4. Validate connectivity from API and worker.
 
 ## 4. Environment Variables
 
@@ -83,6 +86,7 @@ Implement in this order to minimize rework:
 
 - Service endpoints working with validation
 - Order endpoints working with persistence
+- `Prisma + PostgreSQL` persistence wired as default store
 - Callback endpoint verifies signature and replay guard
 - Health endpoint reports DB and listener lag basics
 

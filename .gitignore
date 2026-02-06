@@ -1,2 +1,16 @@
 .DS_Store
 ._*
+node_modules
+.pnpm-store
+.turbo
+*.tsbuildinfo
+coverage
+dist
+out
+.next
+.env
+.env.*
+!.env.example
+artifacts
+cache
+typechain-types

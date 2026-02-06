@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared-types" },
+    { "path": "./packages/config" },
+    { "path": "./packages/observability" },
+    { "path": "./packages/sdk-consumer" },
+    { "path": "./packages/sdk-supplier" },
+    { "path": "./apps/api" },
+    { "path": "./apps/worker" },
+    { "path": "./apps/supplier-mock" },
+    { "path": "./apps/web" }
+  ]
+}

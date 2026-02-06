@@ -135,15 +135,15 @@ Exit Criteria:
 
 ## 4. Task Board (Implementation Checklist)
 
-- [ ] Define shared types: `ServiceManifest`, `Order`, `PaymentProof`, `TaskRequest`, `TaskResponse`.
-- [ ] Define deterministic mapping: `order_id/service_id -> bytes32`.
-- [ ] Create DB schema and migration.
-- [ ] Build service registry APIs.
-- [ ] Build order APIs.
+- [x] Define shared types: `ServiceManifest`, `Order`, `PaymentProof`, `TaskRequest`, `TaskResponse`.
+- [x] Define deterministic mapping: `order_id/service_id -> bytes32`.
+- [x] Create DB schema and Prisma sync flow.
+- [x] Build service registry APIs.
+- [x] Build order APIs.
 - [ ] Deploy and configure `PaymentRouter`.
-- [ ] Build chain listener worker.
-- [ ] Build execution dispatcher worker.
-- [ ] Build minimal supplier and consumer SDK helpers.
+- [x] Build chain listener worker.
+- [x] Build execution dispatcher worker.
+- [x] Build minimal supplier and consumer SDK helpers.
 - [ ] Build demo UI timeline and tx panel.
 - [ ] Add integration test for full flow.
 - [ ] Prepare demo script and failover script.

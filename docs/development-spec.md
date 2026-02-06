@@ -206,10 +206,14 @@ Verification rules:
 ## Order API
 - `POST /v1/orders`
   - Create order in `CREATED`.
+- `GET /v1/orders?status=...`
+  - List orders, optional status filter.
 - `GET /v1/orders/{order_id}`
   - Query current status/result.
 - `POST /v1/orders/{order_id}/callback`
   - Supplier posts execution result.
+- `POST /v1/internal/orders/{order_id}/transition`
+  - Internal worker-only state transition endpoint.
 
 ## System API
 - `GET /v1/health`
@@ -230,15 +234,17 @@ Verification rules:
   - Backfill from the last safe block on restart.
   - Roll back `PAID` only when chain finality check invalidates the event.
 
-## 9. Storage Schema (Suggested)
+## 9. Storage Schema (Prisma + PostgreSQL)
 
 Tables:
 - `services`
-  - `service_id (pk)`, `service_id_hex`, `name`, `manifest_json`, `price_usdt`, `price_atomic`, `token_decimals`, `supplier_wallet`, `is_active`, `created_at`.
+  - `service_id (pk)`, `service_id_hex`, `name`, `description`, `input_schema`, `output_schema`, `price_usdt`, `price_atomic`, `token_decimals`, `endpoint`, `supplier_wallet`, `version`, `is_active`, `created_at`, `updated_at`.
 - `orders`
-  - `order_id (pk)`, `order_id_hex`, `service_id`, `service_id_hex`, `buyer_wallet`, `supplier_wallet`, `amount_usdt`, `amount_atomic`, `token_decimals`, `status`, `input_json`, `result_json`, `error_message`, `tx_hash`, `created_at`, `updated_at`.
+  - `order_id (pk)`, `order_id_hex`, `service_id`, `service_id_hex`, `buyer_wallet`, `supplier_wallet`, `amount_usdt`, `amount_atomic`, `token_decimals`, `token_address`, `chain_id`, `status`, `input_payload`, `result_payload`, `error_message`, `tx_hash`, `created_at`, `updated_at`.
 - `payment_events`
   - `id (pk)`, `order_id`, `order_id_hex`, `tx_hash`, `block_number`, `log_index`, `raw_event_json`, `created_at`.
+- `callback_nonces`
+  - `nonce (pk)`, `created_at`.
 
 Indexes:
 - `orders(status, created_at)`.
@@ -254,7 +260,8 @@ Indexes:
   - `X-Callback-Timestamp`
   - `X-Callback-Nonce`
   - `X-Callback-Signature` (HMAC-SHA256 over body + timestamp + nonce)
-- Reject callbacks with stale timestamp or replayed nonce.
+- Reject callbacks with replayed nonce.
+- Timestamp freshness window validation is recommended for production hardening.
 - Log all state transitions with actor/source.
 
 ## 11. Observability

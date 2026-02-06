@@ -111,6 +111,20 @@ event OrderPaid(
 
 ```text
 .
+├── apps
+│   ├── api
+│   ├── worker
+│   ├── web
+│   └── supplier-mock
+├── packages
+│   ├── shared-types
+│   ├── config
+│   ├── observability
+│   ├── sdk-consumer
+│   └── sdk-supplier
+├── contracts
+├── infra
+│   └── docker-compose.yml
 ├── README.md
 └── docs
     ├── implementation-blueprint.md
@@ -125,6 +139,35 @@ event OrderPaid(
 - Development guide: `docs/development-guide.md`
 - Delivery plan: `docs/development-plan.md`
 - Technical spec: `docs/development-spec.md`
+
+## Local Development Quickstart
+
+```bash
+# 1) Install dependencies
+pnpm install
+
+# 2) Start local infra (Postgres + Redis)
+docker compose -f infra/docker-compose.yml up -d
+
+# 3) Prepare env files
+cp apps/api/.env.example apps/api/.env
+cp apps/worker/.env.example apps/worker/.env
+cp apps/supplier-mock/.env.example apps/supplier-mock/.env
+cp apps/web/.env.example apps/web/.env
+
+# 4) Sync database schema
+pnpm --filter @agos/api prisma:push
+
+# 5) Start API / worker / supplier mock / web (in separate shells)
+pnpm --filter @agos/api dev
+pnpm --filter @agos/worker dev
+pnpm --filter @agos/supplier-mock dev
+pnpm --filter @agos/web dev
+```
+
+Useful commands:
+- `pnpm test` (runs unit + contract tests)
+- `pnpm build` (builds all packages and apps)
 
 ## Hackathon Demo Script
 
@@ -155,4 +198,5 @@ event OrderPaid(
 Current repository status:
 - Product scope aligned to OpenClaw constraints
 - Development plan and technical spec updated for submission readiness
-- Implementation phase ready to start
+- Monorepo scaffold, core API, worker, contract, supplier mock, and demo web app are implemented
+- Backend persistence is integrated with `Prisma + PostgreSQL` in `apps/api`

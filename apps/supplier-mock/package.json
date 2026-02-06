@@ -1,0 +1,26 @@
+{
+  "name": "@agos/supplier-mock",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@agos/config": "workspace:*",
+    "@agos/observability": "workspace:*",
+    "@agos/sdk-supplier": "workspace:*",
+    "@agos/shared-types": "workspace:*",
+    "@fastify/cors": "^11.1.0",
+    "fastify": "^5.6.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5"
+  }
+}
