@@ -126,6 +126,9 @@ importers:
       tsx:
         specifier: ^4.20.5
         version: 4.21.0
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@24.10.11)(jiti@2.6.1)(tsx@4.21.0)
 
   contracts:
     devDependencies:

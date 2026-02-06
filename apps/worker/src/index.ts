@@ -5,6 +5,13 @@ import { bsc } from 'viem/chains';
 import { loadEnv } from '@agos/config';
 import { logger, recordMetric } from '@agos/observability';
 import type { Order, ServiceManifest } from '@agos/shared-types';
+import {
+  getOrderPaidMismatchReason,
+  hasExpectedPaymentToken,
+  parseOrderPaidLog,
+  type OrderPaidLog,
+  type RawOrderPaidLog
+} from './payment-event.js';
 
 const env = loadEnv();
 const apiBase = process.env.API_BASE_URL ?? 'http://localhost:3000';
@@ -29,32 +36,6 @@ const paymentRouterAbi = [
     ]
   }
 ] as const;
-
-type OrderPaidLog = {
-  orderIdHex: `0x${string}`;
-  serviceIdHex: `0x${string}`;
-  buyer: `0x${string}`;
-  supplier: `0x${string}`;
-  token: `0x${string}`;
-  amountAtomic: bigint;
-  txHash: string;
-  blockNumber: bigint;
-  logIndex: number;
-};
-
-type RawOrderPaidLog = {
-  args: {
-    orderId?: `0x${string}` | undefined;
-    serviceId?: `0x${string}` | undefined;
-    buyer?: `0x${string}` | undefined;
-    supplier?: `0x${string}` | undefined;
-    token?: `0x${string}` | undefined;
-    amount?: bigint | undefined;
-  };
-  transactionHash: `0x${string}` | null;
-  blockNumber?: bigint | null;
-  logIndex?: number | null;
-};
 
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${apiBase}${path}`);
@@ -85,28 +66,9 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
 async function markOrderPaidFromEvent(log: OrderPaidLog): Promise<boolean> {
   const order = await apiGet<Order>(`/v1/orders/by-hex/${log.orderIdHex}`);
 
-  if (order.service_id_hex.toLowerCase() !== log.serviceIdHex.toLowerCase()) {
-    logger.warn({ order_id: order.order_id, service_id_hex: log.serviceIdHex }, 'skip event: service_id_hex mismatch');
-    return false;
-  }
-
-  if (order.buyer_wallet.toLowerCase() !== log.buyer.toLowerCase()) {
-    logger.warn({ order_id: order.order_id, buyer: log.buyer }, 'skip event: buyer mismatch');
-    return false;
-  }
-
-  if (order.supplier_wallet.toLowerCase() !== log.supplier.toLowerCase()) {
-    logger.warn({ order_id: order.order_id, supplier: log.supplier }, 'skip event: supplier mismatch');
-    return false;
-  }
-
-  if (order.token_address.toLowerCase() !== log.token.toLowerCase()) {
-    logger.warn({ order_id: order.order_id, token: log.token }, 'skip event: token mismatch');
-    return false;
-  }
-
-  if (order.amount_atomic !== log.amountAtomic.toString()) {
-    logger.warn({ order_id: order.order_id, amount_atomic: log.amountAtomic.toString() }, 'skip event: amount mismatch');
+  const mismatch = getOrderPaidMismatchReason(order, log);
+  if (mismatch) {
+    logger.warn({ order_id: order.order_id, mismatch }, 'skip event: order/log mismatch');
     return false;
   }
 
@@ -145,34 +107,6 @@ async function markOrderPaidFromEvent(log: OrderPaidLog): Promise<boolean> {
   return false;
 }
 
-function parseOrderPaidLog(log: RawOrderPaidLog): OrderPaidLog | null {
-  if (
-    !log.transactionHash ||
-    !log.args.orderId ||
-    !log.args.serviceId ||
-    !log.args.buyer ||
-    !log.args.supplier ||
-    !log.args.token ||
-    log.args.amount === undefined ||
-    log.logIndex === undefined ||
-    log.logIndex === null
-  ) {
-    return null;
-  }
-
-  return {
-    orderIdHex: log.args.orderId,
-    serviceIdHex: log.args.serviceId,
-    buyer: log.args.buyer,
-    supplier: log.args.supplier,
-    token: log.args.token,
-    amountAtomic: log.args.amount,
-    txHash: log.transactionHash,
-    blockNumber: log.blockNumber ?? 0n,
-    logIndex: log.logIndex
-  };
-}
-
 async function safeMarkOrderPaidFromEvent(log: RawOrderPaidLog): Promise<void> {
   const parsed = parseOrderPaidLog(log);
   if (!parsed) {
@@ -180,7 +114,7 @@ async function safeMarkOrderPaidFromEvent(log: RawOrderPaidLog): Promise<void> {
     return;
   }
 
-  if (parsed.token.toLowerCase() !== env.USDT_ADDRESS.toLowerCase()) {
+  if (!hasExpectedPaymentToken(parsed, env.USDT_ADDRESS)) {
     logger.warn({ tx_hash: parsed.txHash, token: parsed.token }, 'skip event: unexpected token');
     return;
   }
