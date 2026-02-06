@@ -223,6 +223,20 @@ Verification rules:
 - `GET /v1/health`
   - Health check for API, DB, chain listener lag.
 
+## OpenClaw Adapter API
+- `GET /v1/openclaw/listings`
+  - List purchasable listings for OpenClaw.
+- `GET /v1/openclaw/listings/{listing_id}`
+  - Get listing detail.
+- `POST /v1/openclaw/purchases`
+  - Create purchase (maps to order creation).
+- `GET /v1/openclaw/purchases/{purchase_id}`
+  - Query purchase status/result.
+- `GET /v1/openclaw/purchases/by-hex/{order_id_hex}`
+  - Query purchase by on-chain order hex id.
+- `POST /v1/openclaw/purchases/{purchase_id}/prepare-payment`
+  - Return on-chain payment parameters for `payForService`.
+
 ## 8. Idempotency and Reliability Rules
 
 - `order_id` is globally unique and immutable.

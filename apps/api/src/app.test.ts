@@ -119,4 +119,78 @@ describe('api app', () => {
     expect(duplicateApplied.duplicate_event).toBe(true);
     expect(duplicateApplied.order.status).toBe('PAID');
   });
+
+  it('supports openclaw listings and purchase endpoints', async () => {
+    const listingRes = await app.inject({
+      method: 'POST',
+      url: '/v1/services',
+      payload: servicePayload
+    });
+    expect(listingRes.statusCode).toBe(201);
+
+    const listRes = await app.inject({
+      method: 'GET',
+      url: '/v1/openclaw/listings'
+    });
+    expect(listRes.statusCode).toBe(200);
+    const listings = listRes.json() as Array<{ listing_id: string }>;
+    expect(listings.length).toBeGreaterThan(0);
+    expect(listings[0]?.listing_id).toBe(servicePayload.service_id);
+
+    const createPurchaseRes = await app.inject({
+      method: 'POST',
+      url: '/v1/openclaw/purchases',
+      payload: {
+        listing_id: servicePayload.service_id,
+        buyer_wallet: '0x0000000000000000000000000000000000000002',
+        input_payload: { query: 'buy' }
+      }
+    });
+    expect(createPurchaseRes.statusCode).toBe(201);
+    const purchase = createPurchaseRes.json() as {
+      purchase_id: string;
+      purchase_id_hex: string;
+      listing_id: string;
+      amount_atomic: string;
+      token_address: string;
+      chain_id: number;
+    };
+    expect(purchase.listing_id).toBe(servicePayload.service_id);
+
+    const prepareRes = await app.inject({
+      method: 'POST',
+      url: `/v1/openclaw/purchases/${purchase.purchase_id}/prepare-payment`
+    });
+    expect(prepareRes.statusCode).toBe(200);
+    const payment = prepareRes.json() as {
+      purchase_id: string;
+      purchase_id_hex: string;
+      listing_id: string;
+      amount_atomic: string;
+      token_address: string;
+      chain_id: number;
+      payment_router_address: string;
+    };
+    expect(payment.purchase_id).toBe(purchase.purchase_id);
+    expect(payment.purchase_id_hex).toBe(purchase.purchase_id_hex);
+    expect(payment.listing_id).toBe(purchase.listing_id);
+    expect(payment.amount_atomic).toBe(purchase.amount_atomic);
+    expect(payment.token_address).toBe(purchase.token_address);
+    expect(payment.chain_id).toBe(purchase.chain_id);
+    expect(payment.payment_router_address).toBe('0x0000000000000000000000000000000000000000');
+
+    const getPurchaseRes = await app.inject({
+      method: 'GET',
+      url: `/v1/openclaw/purchases/${purchase.purchase_id}`
+    });
+    expect(getPurchaseRes.statusCode).toBe(200);
+    expect(getPurchaseRes.json().purchase_id).toBe(purchase.purchase_id);
+
+    const getByHexRes = await app.inject({
+      method: 'GET',
+      url: `/v1/openclaw/purchases/by-hex/${purchase.purchase_id_hex}`
+    });
+    expect(getByHexRes.statusCode).toBe(200);
+    expect(getByHexRes.json().purchase_id).toBe(purchase.purchase_id);
+  });
 });

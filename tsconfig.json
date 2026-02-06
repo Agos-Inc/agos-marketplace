@@ -4,6 +4,7 @@
     { "path": "./packages/shared-types" },
     { "path": "./packages/config" },
     { "path": "./packages/observability" },
+    { "path": "./packages/agos-sdk" },
     { "path": "./packages/sdk-consumer" },
     { "path": "./packages/sdk-supplier" },
     { "path": "./apps/api" },

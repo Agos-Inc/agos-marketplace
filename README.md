@@ -44,6 +44,7 @@ This turns API calls into verifiable economic actions.
 Components:
 - `Registry API`: register/list/query services
 - `Order API`: create/query orders and receive supplier callbacks
+- `OpenClaw Adapter API`: listings/purchases facade for fast integration
 - `Payment Listener`: watches `PaymentRouter.OrderPaid`
 - `Execution Dispatcher`: sends tasks to supplier endpoint
 - `Demo UI`: displays service list, tx proof, and order timeline
@@ -120,6 +121,7 @@ event OrderPaid(
 │   ├── shared-types
 │   ├── config
 │   ├── observability
+│   ├── agos-sdk
 │   ├── sdk-consumer
 │   └── sdk-supplier
 ├── contracts
@@ -139,6 +141,7 @@ event OrderPaid(
 - Development guide: `docs/development-guide.md`
 - Delivery plan: `docs/development-plan.md`
 - Technical spec: `docs/development-spec.md`
+- OpenClaw integration: `docs/openclaw-integration.md`
 
 ## Local Development Quickstart
 

@@ -5,7 +5,16 @@ import cors from '@fastify/cors';
 import { z } from 'zod';
 import { loadEnv, type AppEnv } from '@agos/config';
 import { logger, recordMetric } from '@agos/observability';
-import { callbackHeadersSchema, orderCallbackSchema, ORDER_STATES, type OrderState } from '@agos/shared-types';
+import {
+  callbackHeadersSchema,
+  idToHex,
+  orderCallbackSchema,
+  ORDER_STATES,
+  type Order,
+  type OrderState,
+  priceToAtomic,
+  type ServiceManifest
+} from '@agos/shared-types';
 import { InMemoryStore, PrismaStore, signCallback, type InternalTransitionInput, type Store } from './store.js';
 import { prisma } from './prisma.js';
 
@@ -37,6 +46,84 @@ const internalPaymentEventSchema = z.object({
   log_index: z.number().int().nonnegative(),
   raw_event: z.record(z.string(), z.unknown())
 });
+
+const openClawCreatePurchaseSchema = z.object({
+  listing_id: z.string().min(3),
+  buyer_wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  input_payload: z.record(z.string(), z.unknown())
+});
+
+type OpenClawListing = {
+  listing_id: string;
+  listing_id_hex: string;
+  title: string;
+  description: string;
+  price_usdt: string;
+  price_atomic: string;
+  token_decimals: number;
+  supplier_wallet: string;
+  endpoint: string;
+  version: string;
+  is_active: boolean;
+};
+
+type OpenClawPurchase = {
+  purchase_id: string;
+  purchase_id_hex: string;
+  listing_id: string;
+  listing_id_hex: string;
+  buyer_wallet: string;
+  supplier_wallet: string;
+  amount_usdt: string;
+  amount_atomic: string;
+  token_decimals: number;
+  token_address: string;
+  chain_id: number;
+  status: OrderState;
+  tx_hash: string | null;
+  error_message: string | null;
+  result_payload: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function toOpenClawListing(service: ServiceManifest): OpenClawListing {
+  return {
+    listing_id: service.service_id,
+    listing_id_hex: service.service_id_hex ?? idToHex(service.service_id),
+    title: service.name,
+    description: service.description,
+    price_usdt: service.price_usdt,
+    price_atomic: service.price_atomic ?? priceToAtomic(service.price_usdt, service.token_decimals).toString(),
+    token_decimals: service.token_decimals,
+    supplier_wallet: service.supplier_wallet,
+    endpoint: service.endpoint,
+    version: service.version,
+    is_active: service.is_active
+  };
+}
+
+function toOpenClawPurchase(order: Order): OpenClawPurchase {
+  return {
+    purchase_id: order.order_id,
+    purchase_id_hex: order.order_id_hex,
+    listing_id: order.service_id,
+    listing_id_hex: order.service_id_hex,
+    buyer_wallet: order.buyer_wallet,
+    supplier_wallet: order.supplier_wallet,
+    amount_usdt: order.amount_usdt,
+    amount_atomic: order.amount_atomic,
+    token_decimals: order.token_decimals,
+    token_address: order.token_address,
+    chain_id: order.chain_id,
+    status: order.status,
+    tx_hash: order.tx_hash,
+    error_message: order.error_message,
+    result_payload: order.result_payload,
+    created_at: order.created_at,
+    updated_at: order.updated_at
+  };
+}
 
 function createDefaultStore(): Store {
   if (process.env.NODE_ENV === 'test') {
@@ -82,6 +169,22 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance<any, an
     return service;
   });
 
+  app.get('/v1/openclaw/listings', async () => {
+    const services = await store.listServices();
+    return services.map(toOpenClawListing);
+  });
+
+  app.get('/v1/openclaw/listings/:listing_id', async (request, reply) => {
+    const params = request.params as { listing_id: string };
+    const service = await store.getService(params.listing_id);
+
+    if (!service) {
+      return reply.code(404).send({ message: 'listing not found' });
+    }
+
+    return toOpenClawListing(service);
+  });
+
   app.post('/v1/orders', async (request, reply) => {
     try {
       const order = await store.createOrder(request.body, env.USDT_ADDRESS, env.CHAIN_ID);
@@ -111,6 +214,64 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance<any, an
     }
 
     return order;
+  });
+
+  app.post('/v1/openclaw/purchases', async (request, reply) => {
+    try {
+      const payload = openClawCreatePurchaseSchema.parse(request.body);
+      const order = await store.createOrder(
+        {
+          service_id: payload.listing_id,
+          buyer_wallet: payload.buyer_wallet,
+          input_payload: payload.input_payload
+        },
+        env.USDT_ADDRESS,
+        env.CHAIN_ID
+      );
+      recordMetric({ name: 'orders_created_total', value: 1 });
+      return reply.code(201).send(toOpenClawPurchase(order));
+    } catch (error) {
+      return reply.code(400).send({ message: (error as Error).message });
+    }
+  });
+
+  app.get('/v1/openclaw/purchases/:purchase_id', async (request, reply) => {
+    const params = request.params as { purchase_id: string };
+    const order = await store.getOrder(params.purchase_id);
+    if (!order) {
+      return reply.code(404).send({ message: 'purchase not found' });
+    }
+    return toOpenClawPurchase(order);
+  });
+
+  app.get('/v1/openclaw/purchases/by-hex/:order_id_hex', async (request, reply) => {
+    const params = request.params as { order_id_hex: string };
+    const order = await store.getOrderByHex(params.order_id_hex);
+    if (!order) {
+      return reply.code(404).send({ message: 'purchase not found' });
+    }
+    return toOpenClawPurchase(order);
+  });
+
+  app.post('/v1/openclaw/purchases/:purchase_id/prepare-payment', async (request, reply) => {
+    const params = request.params as { purchase_id: string };
+    const order = await store.getOrder(params.purchase_id);
+
+    if (!order) {
+      return reply.code(404).send({ message: 'purchase not found' });
+    }
+
+    return {
+      purchase_id: order.order_id,
+      purchase_id_hex: order.order_id_hex,
+      listing_id: order.service_id,
+      listing_id_hex: order.service_id_hex,
+      chain_id: order.chain_id,
+      token_address: order.token_address,
+      payment_router_address: env.PAYMENT_ROUTER_ADDRESS,
+      amount_atomic: order.amount_atomic,
+      supplier_wallet: order.supplier_wallet
+    };
   });
 
   app.get('/v1/orders/by-hex/:order_id_hex', async (request, reply) => {
