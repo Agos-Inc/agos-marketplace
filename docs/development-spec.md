@@ -210,10 +210,14 @@ Verification rules:
   - List orders, optional status filter.
 - `GET /v1/orders/{order_id}`
   - Query current status/result.
+- `GET /v1/orders/by-hex/{order_id_hex}`
+  - Query order by on-chain `bytes32` id.
 - `POST /v1/orders/{order_id}/callback`
   - Supplier posts execution result.
 - `POST /v1/internal/orders/{order_id}/transition`
   - Internal worker-only state transition endpoint.
+- `POST /v1/internal/orders/{order_id}/payment-event`
+  - Internal worker endpoint for idempotent payment event ingestion.
 
 ## System API
 - `GET /v1/health`

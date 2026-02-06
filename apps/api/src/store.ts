@@ -25,6 +25,20 @@ export type TransitionMetadata = {
   error_message?: string;
 };
 
+export type PaymentEventInput = {
+  order_id_hex: string;
+  tx_hash: string;
+  block_number: number;
+  log_index: number;
+  raw_event: Record<string, unknown>;
+};
+
+export type PaymentEventApplyResult = {
+  order: Order;
+  transitioned_to_paid: boolean;
+  duplicate_event: boolean;
+};
+
 type NormalizedServiceManifest = ServiceManifest & {
   service_id_hex: string;
   price_atomic: string;
@@ -38,7 +52,9 @@ export interface Store {
   createOrder(input: unknown, usdtAddress: string, chainId: number): Promise<Order>;
   listOrders(status?: OrderState): Promise<Order[]>;
   getOrder(orderId: string): Promise<Order | null>;
+  getOrderByHex(orderIdHex: string): Promise<Order | null>;
   transitionOrder(orderId: string, to: OrderState, metadata?: TransitionMetadata): Promise<Order>;
+  recordPaymentEvent(orderId: string, input: PaymentEventInput): Promise<PaymentEventApplyResult>;
   applySupplierCallback(orderId: string, callback: OrderCallback): Promise<Order>;
   verifyAndConsumeNonce(nonce: string): Promise<boolean>;
   close?(): Promise<void>;
@@ -109,6 +125,7 @@ export class InMemoryStore implements Store {
   readonly provider = 'in-memory' as const;
   private readonly services = new Map<string, ServiceManifest>();
   private readonly orders = new Map<string, Order>();
+  private readonly paymentEventKeys = new Set<string>();
   private readonly usedCallbackNonces = new Set<string>();
 
   async registerService(input: unknown): Promise<ServiceManifest> {
@@ -171,6 +188,15 @@ export class InMemoryStore implements Store {
     return this.orders.get(orderId) ?? null;
   }
 
+  async getOrderByHex(orderIdHex: string): Promise<Order | null> {
+    for (const order of this.orders.values()) {
+      if (order.order_id_hex.toLowerCase() === orderIdHex.toLowerCase()) {
+        return order;
+      }
+    }
+    return null;
+  }
+
   async transitionOrder(orderId: string, to: OrderState, metadata?: TransitionMetadata): Promise<Order> {
     const current = this.orders.get(orderId);
     if (!current) {
@@ -191,6 +217,62 @@ export class InMemoryStore implements Store {
 
     this.orders.set(orderId, next);
     return next;
+  }
+
+  async recordPaymentEvent(orderId: string, input: PaymentEventInput): Promise<PaymentEventApplyResult> {
+    const current = this.orders.get(orderId);
+    if (!current) {
+      throw new Error(`order not found: ${orderId}`);
+    }
+
+    if (current.order_id_hex.toLowerCase() !== input.order_id_hex.toLowerCase()) {
+      throw new Error(`order_id_hex mismatch for ${orderId}`);
+    }
+
+    const eventKey = `${input.tx_hash.toLowerCase()}:${input.log_index}`;
+    if (this.paymentEventKeys.has(eventKey)) {
+      return {
+        order: current,
+        transitioned_to_paid: false,
+        duplicate_event: true
+      };
+    }
+    this.paymentEventKeys.add(eventKey);
+
+    if (current.status === 'CREATED') {
+      const next: Order = {
+        ...current,
+        status: 'PAID',
+        tx_hash: input.tx_hash,
+        updated_at: new Date().toISOString()
+      };
+      this.orders.set(orderId, next);
+      return {
+        order: next,
+        transitioned_to_paid: true,
+        duplicate_event: false
+      };
+    }
+
+    if (!current.tx_hash) {
+      const next: Order = {
+        ...current,
+        tx_hash: input.tx_hash,
+        updated_at: new Date().toISOString()
+      };
+      this.orders.set(orderId, next);
+      return {
+        order: next,
+        transitioned_to_paid: false,
+        duplicate_event: false
+      };
+    }
+
+    return {
+      order: current,
+      transitioned_to_paid: false,
+      duplicate_event: false
+    };
   }
 
   async applySupplierCallback(orderId: string, callback: OrderCallback): Promise<Order> {
@@ -339,6 +421,13 @@ export class PrismaStore implements Store {
     return row ? orderFromPrisma(row) : null;
   }
 
+  async getOrderByHex(orderIdHex: string): Promise<Order | null> {
+    const row = await this.prisma.order.findFirst({
+      where: { orderIdHex }
+    });
+    return row ? orderFromPrisma(row) : null;
+  }
+
   async transitionOrder(orderId: string, to: OrderState, metadata?: TransitionMetadata): Promise<Order> {
     const current = await this.prisma.order.findUnique({ where: { orderId } });
     if (!current) {
@@ -359,6 +448,76 @@ export class PrismaStore implements Store {
     });
 
     return orderFromPrisma(next);
+  }
+
+  async recordPaymentEvent(orderId: string, input: PaymentEventInput): Promise<PaymentEventApplyResult> {
+    return await this.prisma.$transaction(async (tx) => {
+      const current = await tx.order.findUnique({ where: { orderId } });
+      if (!current) {
+        throw new Error(`order not found: ${orderId}`);
+      }
+
+      if (current.orderIdHex.toLowerCase() !== input.order_id_hex.toLowerCase()) {
+        throw new Error(`order_id_hex mismatch for ${orderId}`);
+      }
+
+      try {
+        await tx.paymentEvent.create({
+          data: {
+            orderId: current.orderId,
+            orderIdHex: current.orderIdHex,
+            txHash: input.tx_hash,
+            blockNumber: BigInt(input.block_number),
+            logIndex: input.log_index,
+            rawEventJson: input.raw_event as Prisma.InputJsonValue
+          }
+        });
+      } catch (error) {
+        if (isPrismaKnownRequestError(error) && error.code === 'P2002') {
+          return {
+            order: orderFromPrisma(current),
+            transitioned_to_paid: false,
+            duplicate_event: true
+          };
+        }
+        throw error;
+      }
+
+      if (current.status === 'CREATED') {
+        const updated = await tx.order.update({
+          where: { orderId },
+          data: {
+            status: 'PAID',
+            txHash: input.tx_hash
+          }
+        });
+        return {
+          order: orderFromPrisma(updated),
+          transitioned_to_paid: true,
+          duplicate_event: false
+        };
+      }
+
+      if (!current.txHash) {
+        const updated = await tx.order.update({
+          where: { orderId },
+          data: {
+            txHash: input.tx_hash
+          }
+        });
+        return {
+          order: orderFromPrisma(updated),
+          transitioned_to_paid: false,
+          duplicate_event: false
+        };
+      }
+
+      return {
+        order: orderFromPrisma(current),
+        transitioned_to_paid: false,
+        duplicate_event: false
+      };
+    });
   }
 
   async applySupplierCallback(orderId: string, callback: OrderCallback): Promise<Order> {

@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import { z } from 'zod';
 import { loadEnv, type AppEnv } from '@agos/config';
 import { logger, recordMetric } from '@agos/observability';
 import { callbackHeadersSchema, orderCallbackSchema, ORDER_STATES, type OrderState } from '@agos/shared-types';
@@ -28,6 +29,14 @@ export type BuildAppOptions = {
   env?: AppEnv;
   store?: Store;
 };
+
+const internalPaymentEventSchema = z.object({
+  order_id_hex: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  tx_hash: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  block_number: z.number().int().nonnegative(),
+  log_index: z.number().int().nonnegative(),
+  raw_event: z.record(z.string(), z.unknown())
+});
 
 function createDefaultStore(): Store {
   if (process.env.NODE_ENV === 'test') {
@@ -104,6 +113,17 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance<any, an
     return order;
   });
 
+  app.get('/v1/orders/by-hex/:order_id_hex', async (request, reply) => {
+    const params = request.params as { order_id_hex: string };
+    const order = await store.getOrderByHex(params.order_id_hex);
+
+    if (!order) {
+      return reply.code(404).send({ message: 'order not found' });
+    }
+
+    return order;
+  });
+
   app.post('/v1/orders/:order_id/callback', async (request, reply) => {
     const params = request.params as { order_id: string };
 
@@ -162,6 +182,26 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance<any, an
       }
 
       return next;
+    } catch (error) {
+      return reply.code(400).send({ message: (error as Error).message });
+    }
+  });
+
+  app.post('/v1/internal/orders/:order_id/payment-event', async (request, reply) => {
+    const internalSecret = request.headers['x-internal-secret'];
+    if (internalSecret !== env.CALLBACK_HMAC_SECRET) {
+      return reply.code(401).send({ message: 'unauthorized internal request' });
+    }
+
+    const params = request.params as { order_id: string };
+
+    try {
+      const payload = internalPaymentEventSchema.parse(request.body);
+      const applied = await store.recordPaymentEvent(params.order_id, payload);
+      if (applied.transitioned_to_paid) {
+        recordMetric({ name: 'orders_paid_total', value: 1 });
+      }
+      return applied;
     } catch (error) {
       return reply.code(400).send({ message: (error as Error).message });
     }

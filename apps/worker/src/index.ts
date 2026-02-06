@@ -13,7 +13,6 @@ const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 const dispatchQueue = new Queue<{ orderId: string }>('dispatch', { connection: redis });
 
 const enqueuedOrderIds = new Set<string>();
-const processedEvents = new Set<string>();
 
 const paymentRouterAbi = [
   {
@@ -30,6 +29,32 @@ const paymentRouterAbi = [
     ]
   }
 ] as const;
+
+type OrderPaidLog = {
+  orderIdHex: `0x${string}`;
+  serviceIdHex: `0x${string}`;
+  buyer: `0x${string}`;
+  supplier: `0x${string}`;
+  token: `0x${string}`;
+  amountAtomic: bigint;
+  txHash: string;
+  blockNumber: bigint;
+  logIndex: number;
+};
+
+type RawOrderPaidLog = {
+  args: {
+    orderId?: `0x${string}` | undefined;
+    serviceId?: `0x${string}` | undefined;
+    buyer?: `0x${string}` | undefined;
+    supplier?: `0x${string}` | undefined;
+    token?: `0x${string}` | undefined;
+    amount?: bigint | undefined;
+  };
+  transactionHash: `0x${string}` | null;
+  blockNumber?: bigint | null;
+  logIndex?: number | null;
+};
 
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${apiBase}${path}`);
@@ -57,28 +82,123 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function markOrderPaidFromEvent(log: { orderId: `0x${string}`; txHash: string }): Promise<void> {
-  const key = `${log.txHash}:${log.orderId}`;
-  if (processedEvents.has(key)) {
+async function markOrderPaidFromEvent(log: OrderPaidLog): Promise<boolean> {
+  const order = await apiGet<Order>(`/v1/orders/by-hex/${log.orderIdHex}`);
+
+  if (order.service_id_hex.toLowerCase() !== log.serviceIdHex.toLowerCase()) {
+    logger.warn({ order_id: order.order_id, service_id_hex: log.serviceIdHex }, 'skip event: service_id_hex mismatch');
+    return false;
+  }
+
+  if (order.buyer_wallet.toLowerCase() !== log.buyer.toLowerCase()) {
+    logger.warn({ order_id: order.order_id, buyer: log.buyer }, 'skip event: buyer mismatch');
+    return false;
+  }
+
+  if (order.supplier_wallet.toLowerCase() !== log.supplier.toLowerCase()) {
+    logger.warn({ order_id: order.order_id, supplier: log.supplier }, 'skip event: supplier mismatch');
+    return false;
+  }
+
+  if (order.token_address.toLowerCase() !== log.token.toLowerCase()) {
+    logger.warn({ order_id: order.order_id, token: log.token }, 'skip event: token mismatch');
+    return false;
+  }
+
+  if (order.amount_atomic !== log.amountAtomic.toString()) {
+    logger.warn({ order_id: order.order_id, amount_atomic: log.amountAtomic.toString() }, 'skip event: amount mismatch');
+    return false;
+  }
+
+  const applied = await apiPost<{ order: Order; transitioned_to_paid: boolean; duplicate_event: boolean }>(
+    `/v1/internal/orders/${order.order_id}/payment-event`,
+    {
+      order_id_hex: log.orderIdHex,
+      tx_hash: log.txHash,
+      block_number: Number(log.blockNumber),
+      log_index: log.logIndex,
+      raw_event: {
+        order_id_hex: log.orderIdHex,
+        service_id_hex: log.serviceIdHex,
+        buyer: log.buyer,
+        supplier: log.supplier,
+        token: log.token,
+        amount_atomic: log.amountAtomic.toString(),
+        tx_hash: log.txHash,
+        block_number: log.blockNumber.toString(),
+        log_index: log.logIndex
+      }
+    }
+  );
+
+  if (applied.duplicate_event) {
+    logger.info({ order_id: order.order_id, tx_hash: log.txHash }, 'duplicate payment event ignored');
+    return false;
+  }
+
+  if (applied.transitioned_to_paid) {
+    logger.info({ order_id: order.order_id, tx_hash: log.txHash }, 'order marked paid from chain event');
+    return true;
+  }
+
+  logger.info({ order_id: order.order_id, status: applied.order.status }, 'payment event recorded without state change');
+  return false;
+}
+
+function parseOrderPaidLog(log: RawOrderPaidLog): OrderPaidLog | null {
+  if (
+    !log.transactionHash ||
+    !log.args.orderId ||
+    !log.args.serviceId ||
+    !log.args.buyer ||
+    !log.args.supplier ||
+    !log.args.token ||
+    log.args.amount === undefined ||
+    log.logIndex === undefined ||
+    log.logIndex === null
+  ) {
+    return null;
+  }
+
+  return {
+    orderIdHex: log.args.orderId,
+    serviceIdHex: log.args.serviceId,
+    buyer: log.args.buyer,
+    supplier: log.args.supplier,
+    token: log.args.token,
+    amountAtomic: log.args.amount,
+    txHash: log.transactionHash,
+    blockNumber: log.blockNumber ?? 0n,
+    logIndex: log.logIndex
+  };
+}
+
+async function safeMarkOrderPaidFromEvent(log: RawOrderPaidLog): Promise<void> {
+  const parsed = parseOrderPaidLog(log);
+  if (!parsed) {
+    logger.warn({ tx_hash: log.transactionHash }, 'skip malformed OrderPaid log');
     return;
   }
 
-  const createdOrders = await apiGet<Order[]>('/v1/orders?status=CREATED');
-  const matched = createdOrders.find((order) => order.order_id_hex.toLowerCase() === log.orderId.toLowerCase());
-
-  if (!matched) {
-    logger.warn({ orderIdHex: log.orderId }, 'no created order matched chain event');
+  if (parsed.token.toLowerCase() !== env.USDT_ADDRESS.toLowerCase()) {
+    logger.warn({ tx_hash: parsed.txHash, token: parsed.token }, 'skip event: unexpected token');
     return;
   }
 
-  await apiPost<Order>(`/v1/internal/orders/${matched.order_id}/transition`, {
-    to: 'PAID',
-    tx_hash: log.txHash
-  });
+  try {
+    const transitioned = await markOrderPaidFromEvent(parsed);
+    if (transitioned) {
+      recordMetric({ name: 'orders_paid_total', value: 1 });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('404')) {
+      logger.warn({ tx_hash: parsed.txHash, order_id_hex: parsed.orderIdHex }, 'skip event: order not found');
+      return;
+    }
+    throw error;
+  }
 
-  processedEvents.add(key);
-  recordMetric({ name: 'orders_paid_total', value: 1 });
-  logger.info({ order_id: matched.order_id, tx_hash: log.txHash }, 'order marked paid from chain event');
 }
 
 async function enqueuePaidOrders(): Promise<void> {
@@ -165,15 +285,8 @@ function startOrderPaidListener(): void {
     eventName: 'OrderPaid',
     onLogs: async (logs) => {
       for (const log of logs) {
-        if (!log.transactionHash || !log.args.orderId) {
-          continue;
-        }
-
         try {
-          await markOrderPaidFromEvent({
-            orderId: log.args.orderId,
-            txHash: log.transactionHash
-          });
+          await safeMarkOrderPaidFromEvent(log);
         } catch (error) {
           logger.error({ err: error, tx_hash: log.transactionHash }, 'failed to process OrderPaid log');
         }
