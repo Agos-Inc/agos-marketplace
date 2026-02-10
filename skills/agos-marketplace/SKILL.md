@@ -1,141 +1,101 @@
 ---
 name: agos-marketplace
-description: Integrate OpenClaw agents with Agos Marketplace for listing resources, creating purchases, preparing BNB Chain payment parameters, and tracking settlement/execution status to completion. Use when users ask to connect OpenClaw to AGOS, buy/sell agent resources on market.agos.fun, implement marketplace order flow, or build tools around /v1/openclaw/listings and /v1/openclaw/purchases APIs.
+description: Integrate OpenClaw with Agos Marketplace and automatically create purchase orders through executable scripts. Use when users ask to auto-create an AGOS order, buy a listing, prepare BNB Chain payment params, poll deal status, or connect OpenClaw to market.agos.fun with /v1/openclaw APIs.
 ---
 
 # Agos Marketplace
 
-Use this skill to connect OpenClaw agents to AGOS Marketplace with the OpenClaw adapter API.
+Use this skill to create AGOS orders automatically (OpenClaw purchase flow).
 
 ## Defaults
 
-- Marketplace base URL: `https://market.agos.fun`
-- Chain: `BNB Smart Chain` (`chainId=56`)
-- Settlement token: `USDT` on BNB Chain
-- Adapter API namespace: `/v1/openclaw/*`
+- Base URL: `https://market.agos.fun`
+- Chain: `BNB Chain` (`chainId=56`)
+- Settlement: `USDT`
+- Adapter APIs: `/v1/openclaw/*`
 
-Prefer `AGOS_API_BASE` as a configurable variable. Fall back to `https://market.agos.fun`.
+Set `AGOS_API_BASE` to override base URL.
 
-## Core Endpoints
+## Required Automation Path
 
-- `GET /v1/openclaw/listings`
-- `GET /v1/openclaw/listings/:listing_id`
-- `POST /v1/openclaw/purchases`
-- `GET /v1/openclaw/purchases/:purchase_id`
-- `GET /v1/openclaw/purchases/by-hex/:order_id_hex`
-- `POST /v1/openclaw/purchases/:purchase_id/prepare-payment`
-
-Do not use internal endpoints like `/v1/internal/*` in agent integrations.
-
-## Integration Workflow
-
-1. Discover listings.
-2. Create purchase with buyer wallet and task payload.
-3. Prepare on-chain payment params.
-4. Send on-chain `payForService(...)` transaction from the buyer wallet.
-5. Poll purchase status until terminal state.
-
-Treat `COMPLETED` as a successful deal. Treat `FAILED` as terminal failure.
-
-## Request Templates
-
-### 1) List resources
+For order creation, run this script instead of manual curl steps:
 
 ```bash
-curl -sS "$AGOS_API_BASE/v1/openclaw/listings"
+python3 scripts/create_order.py \
+  --base-url "${AGOS_API_BASE:-https://market.agos.fun}" \
+  --buyer-wallet "0xYourBuyerWallet" \
+  --input-json '{"task":"Generate market brief"}' \
+  --prepare-payment
 ```
 
-### 2) Create purchase
+Script location:
+
+- `scripts/create_order.py`
+
+## What The Script Does
+
+1. If `--listing-id` is omitted, fetch listings and auto-select the first active listing.
+2. Create purchase via `POST /v1/openclaw/purchases`.
+3. Optionally fetch payment params via `POST /v1/openclaw/purchases/:id/prepare-payment`.
+4. Optionally poll final state with `--wait`.
+
+## Common Commands
+
+### Auto-create order from first active listing
 
 ```bash
-curl -sS -X POST "$AGOS_API_BASE/v1/openclaw/purchases" \
-  -H 'content-type: application/json' \
-  -d '{
-    "listing_id": "svc_demo_v1",
-    "buyer_wallet": "0xYourBuyerWallet",
-    "input_payload": {"task": "Generate market brief"}
-  }'
+python3 scripts/create_order.py \
+  --buyer-wallet "0xYourBuyerWallet" \
+  --input-json '{"task":"auto order"}'
 ```
 
-### 3) Prepare chain payment parameters
+### Create order for a specific listing
 
 ```bash
-curl -sS -X POST "$AGOS_API_BASE/v1/openclaw/purchases/<purchase_id>/prepare-payment" \
-  -H 'content-type: application/json' \
-  -d '{}'
+python3 scripts/create_order.py \
+  --listing-id "svc_demo_v1" \
+  --buyer-wallet "0xYourBuyerWallet" \
+  --input-json '{"query":"hello"}' \
+  --prepare-payment
 ```
 
-Map response to `PaymentRouter.payForService(orderId, serviceId, supplier, token, amount)`:
+### Create + wait until terminal status
+
+```bash
+python3 scripts/create_order.py \
+  --listing-id "svc_demo_v1" \
+  --buyer-wallet "0xYourBuyerWallet" \
+  --input-json '{"query":"run full flow"}' \
+  --prepare-payment \
+  --wait \
+  --timeout-sec 180 \
+  --interval-sec 3
+```
+
+## Response Contract
+
+Script returns JSON with:
+
+- `purchase`
+- `selected_listing_id`
+- `payment_preparation` (when `--prepare-payment`)
+- `final_state` (when `--wait`)
+
+## Wallet and Chain Execution
+
+This skill can auto-create purchase orders, but chain payment still needs a signer/wallet execution path.
+
+Use `payment_preparation` fields to call `PaymentRouter.payForService(orderId, serviceId, supplier, token, amount)`:
 
 - `purchase_id_hex` -> `orderId`
 - `listing_id_hex` -> `serviceId`
 - `supplier_wallet` -> `supplier`
 - `token_address` -> `token`
 - `amount_atomic` -> `amount`
-- `payment_router_address` -> contract address to call
+- `payment_router_address` -> target contract
 
-### 4) Track purchase status
+## Error Rules
 
-```bash
-curl -sS "$AGOS_API_BASE/v1/openclaw/purchases/<purchase_id>"
-```
-
-Expected states:
-
-- `CREATED`
-- `PAID`
-- `RUNNING`
-- `COMPLETED`
-- `FAILED`
-
-## Polling Policy
-
-Use `3s` to `5s` interval, up to `180s` timeout by default.
-
-Stop polling when status is `COMPLETED` or `FAILED`.
-
-## Wallet and Payment Responsibility
-
-OpenClaw does not automatically custody a buyer wallet by default. The agent needs a signer/wallet execution path to submit chain transactions.
-
-Minimum requirement for purchase settlement:
-
-- Agent can sign and send BNB Chain tx from buyer wallet.
-- Buyer wallet has enough USDT balance and BNB gas.
-- Agent executes `payForService(...)` using `prepare-payment` response.
-
-If wallet automation is unavailable, return payment parameters and ask caller to complete payment manually.
-
-## SDK-First Option
-
-When `@agos/agos-sdk` is available, prefer SDK wrappers:
-
-- `listListings()`
-- `createPurchase(...)`
-- `preparePayment(...)`
-- `getPurchase(...)`
-- `waitForPurchase(...)`
-
-Use raw HTTP only as fallback.
-
-## Error Handling Rules
-
-- Validate wallet format before `createPurchase`.
-- Retry transient HTTP failures (`429/5xx`) with backoff.
-- Fail fast on `400/404` with clear reason.
-- On polling timeout, return last known status and purchase ID.
-- Always surface `tx_hash` and explorer URL if available.
-
-## Output Contract for Agent Calls
-
-When implementing an OpenClaw tool around this skill, return:
-
-- `purchase_id`
-- `status`
-- `listing_id`
-- `amount_usdt`
-- `tx_hash` (if present)
-- `result_payload` (if `COMPLETED`)
-- `error_message` (if `FAILED`)
-
-This keeps downstream orchestration deterministic.
+- If no listing exists, return: seller must register service first.
+- If API returns `400/404`, stop and surface error directly.
+- If status polling times out, return last known state.

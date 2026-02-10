@@ -1,4 +1,4 @@
 interface:
   display_name: "Agos Marketplace"
-  short_description: "Integrate OpenClaw with Agos Marketplace APIs"
-  default_prompt: "Use this skill to list listings, create purchases, prepare payment params, and track purchase status on Agos Marketplace."
+  short_description: "Auto-create AGOS purchase orders from OpenClaw"
+  default_prompt: "Use this skill to auto-create AGOS marketplace orders, optionally prepare payment params, and track purchase status."
