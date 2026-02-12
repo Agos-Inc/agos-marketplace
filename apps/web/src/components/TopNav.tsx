@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -23,7 +24,7 @@ export function TopNav() {
     <header className="top-nav-wrap">
       <div className="top-nav shell">
         <Link href="/" className="brand-link">
-          <span className="brand-dot" />
+          <Image src="/agos-logo.jpeg" alt="AGOS logo" width={28} height={28} className="brand-logo" priority />
           <span className="brand-text">AGOS Marketplace</span>
         </Link>
         <nav className="tab-group">
