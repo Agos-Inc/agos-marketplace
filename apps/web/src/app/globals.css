@@ -671,16 +671,12 @@ pre {
 }
 
 .command-box {
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-gold);
   border-radius: 0.85rem;
-  background: rgba(8, 8, 12, 0.5);
-  padding: 0.8rem;
+  background: rgba(8, 8, 12, 0.64);
+  padding: 0.95rem;
   display: grid;
-  gap: 0.5rem;
-}
-
-.command-box-fallback {
-  border-color: var(--color-border);
+  gap: 0.6rem;
 }
 
 .command-title {
@@ -691,11 +687,27 @@ pre {
 }
 
 .command-text {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #f8fafc;
+  font-size: clamp(1.1rem, 2.1vw, 1.45rem);
+  font-weight: 700;
+  color: #fde68a;
   font-family: var(--font-jetbrains-mono), 'Menlo', monospace;
   word-break: break-word;
+}
+
+.install-meta {
+  display: grid;
+  gap: 0.38rem;
+  font-size: 0.84rem;
+  color: var(--color-text-muted);
+}
+
+.install-meta a {
+  color: #fcd34d;
+  text-decoration: none;
+}
+
+.install-meta a:hover {
+  text-decoration: underline;
 }
 
 .about-points {

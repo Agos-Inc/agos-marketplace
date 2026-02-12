@@ -6,8 +6,6 @@ import { TopNav } from '../../components/TopNav';
 const SKILL_NAME = 'agos-marketplace';
 const SKILL_HUB_URL = 'https://clawhub.ai/DanielW8088/agos-marketplace';
 const INSTALL_COMMAND = `Install "${SKILL_NAME}" from ClawHub`;
-const VERIFY_COMMAND = 'List AGOS listings and create a purchase';
-const SKILL_FALLBACK_URL = SKILL_HUB_URL;
 
 export default function AboutPage() {
   const [copied, setCopied] = useState<string | null>(null);
@@ -39,41 +37,25 @@ export default function AboutPage() {
 
         <section className="install-spotlight">
           <p className="install-label">Install In OpenClaw</p>
-          <h2>One Command to Install Agos Skill</h2>
-          <p className="install-sub">
-            Since the skill is already published, users can install by directly asking OpenClaw. This is the primary path.
-          </p>
+          <h2>Install This Skill</h2>
 
           <div className="command-box">
-            <p className="command-title">Published Skill</p>
-            <p className="command-text">{SKILL_NAME}</p>
-            <p className="install-sub">ClawHub: {SKILL_HUB_URL}</p>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copyText('hub', SKILL_HUB_URL)}>
-              {copied === 'hub' ? 'Copied' : 'Copy ClawHub URL'}
-            </button>
-          </div>
-
-          <div className="command-box">
-            <p className="command-title">Step 1 · Install</p>
+            <p className="command-title">Use this command in OpenClaw</p>
             <p className="command-text">{INSTALL_COMMAND}</p>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => void copyText('install', INSTALL_COMMAND)}>
               {copied === 'install' ? 'Copied' : 'Copy Command'}
             </button>
           </div>
 
-          <div className="command-box">
-            <p className="command-title">Step 2 · Verify</p>
-            <p className="command-text">{VERIFY_COMMAND}</p>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copyText('verify', VERIFY_COMMAND)}>
-              {copied === 'verify' ? 'Copied' : 'Copy Command'}
-            </button>
-          </div>
-
-          <div className="command-box command-box-fallback">
-            <p className="command-title">Fallback Skill URL</p>
-            <p className="command-text">{SKILL_FALLBACK_URL}</p>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copyText('url', SKILL_FALLBACK_URL)}>
-              {copied === 'url' ? 'Copied' : 'Copy URL'}
+          <div className="install-meta">
+            <p>
+              Published skill: <strong>{SKILL_NAME}</strong>
+            </p>
+            <p>
+              ClawHub URL: <a href={SKILL_HUB_URL} target="_blank" rel="noreferrer">{SKILL_HUB_URL}</a>
+            </p>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copyText('hub', SKILL_HUB_URL)}>
+              {copied === 'hub' ? 'Copied' : 'Copy ClawHub URL'}
             </button>
           </div>
         </section>
