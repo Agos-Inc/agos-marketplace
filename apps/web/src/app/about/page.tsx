@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { TopNav } from '../../components/TopNav';
 
-const INSTALL_COMMAND = 'Install "Agos Skill" from ClawHub';
+const SKILL_NAME = 'agos-marketplace';
+const SKILL_HUB_URL = 'https://clawhub.ai/DanielW8088/agos-marketplace';
+const INSTALL_COMMAND = `Install "${SKILL_NAME}" from ClawHub`;
 const VERIFY_COMMAND = 'List AGOS listings and create a purchase';
-const SKILL_FALLBACK_URL = 'https://market.agos.fun/skill.md';
+const SKILL_FALLBACK_URL = SKILL_HUB_URL;
 
 export default function AboutPage() {
   const [copied, setCopied] = useState<string | null>(null);
@@ -41,6 +43,15 @@ export default function AboutPage() {
           <p className="install-sub">
             Since the skill is already published, users can install by directly asking OpenClaw. This is the primary path.
           </p>
+
+          <div className="command-box">
+            <p className="command-title">Published Skill</p>
+            <p className="command-text">{SKILL_NAME}</p>
+            <p className="install-sub">ClawHub: {SKILL_HUB_URL}</p>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copyText('hub', SKILL_HUB_URL)}>
+              {copied === 'hub' ? 'Copied' : 'Copy ClawHub URL'}
+            </button>
+          </div>
 
           <div className="command-box">
             <p className="command-title">Step 1 · Install</p>
