@@ -6,6 +6,7 @@ import { TopNav } from '../../components/TopNav';
 const SKILL_NAME = 'agos-marketplace';
 const SKILL_HUB_URL = 'https://clawhub.ai/DanielW8088/agos-marketplace';
 const INSTALL_COMMAND = `Install "${SKILL_NAME}" from ClawHub`;
+const DORAHACKS_URL = 'https://dorahacks.io/buidl/39250/';
 
 export default function AboutPage() {
   const [copied, setCopied] = useState<string | null>(null);
@@ -58,6 +59,14 @@ export default function AboutPage() {
               {copied === 'hub' ? 'Copied' : 'Copy ClawHub URL'}
             </button>
           </div>
+        </section>
+
+        <section className="support-banner">
+          <p className="support-label">Community Support</p>
+          <h2>If AGOS helps you, please upvote us on DoraHacks.</h2>
+          <a className="btn btn-primary btn-sm" href={DORAHACKS_URL} target="_blank" rel="noreferrer">
+            Vote on DoraHacks
+          </a>
         </section>
 
         <section className="content-grid">

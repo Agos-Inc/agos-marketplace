@@ -297,7 +297,13 @@ select {
   gap: 0.35rem;
   padding: 0.75rem;
   cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.listing-card > * {
+  min-width: 0;
 }
 
 .listing-card:hover {
@@ -312,27 +318,47 @@ select {
 
 .listing-title {
   font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .listing-sub {
   font-size: 0.74rem;
   color: var(--color-text-muted);
   font-family: var(--font-jetbrains-mono), 'Menlo', monospace;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .listing-desc {
   color: var(--color-text-secondary);
   font-size: 0.9rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .listing-meta {
   margin-top: 0.2rem;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
   color: var(--color-text-secondary);
   font-size: 0.8rem;
+}
+
+.listing-meta span {
+  min-width: 0;
+}
+
+.listing-meta span:first-child {
+  white-space: nowrap;
+}
+
+.listing-meta span:last-child {
+  justify-self: end;
+  text-align: right;
 }
 
 .field {
@@ -729,6 +755,32 @@ pre {
   text-decoration: underline;
 }
 
+.support-banner {
+  border: 1px solid rgba(252, 211, 77, 0.42);
+  border-radius: 1rem;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(250, 204, 21, 0.22), rgba(250, 204, 21, 0) 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  box-shadow: var(--shadow-gold);
+  padding: 1rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.support-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fde68a;
+}
+
+.support-banner h2 {
+  font-size: clamp(1rem, 1.85vw, 1.3rem);
+  max-width: 56ch;
+}
+
 .about-points {
   margin-top: 0.75rem;
   display: grid;
@@ -799,5 +851,10 @@ pre {
 
   .order-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .support-banner {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
