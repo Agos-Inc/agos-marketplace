@@ -48,8 +48,8 @@ To avoid ambiguity between API IDs and contract IDs:
 ### Amount Representation
 
 - API display amount uses decimal string (`amount_usdt`: `"1.0"`).
-- Settlement verification uses integer atomic amount (`amount_atomic`: `"1000000"` for USDT 6 decimals).
-- Token decimals are explicit (`token_decimals = 6`) and must be included in conversion logic.
+- Settlement verification uses integer atomic amount (`amount_atomic`: `"1000000000000000000"` for USDT 18 decimals).
+- Token decimals are explicit (`token_decimals = 18`) and must be included in conversion logic.
 
 ## 4. Canonical Data Models
 
@@ -71,8 +71,8 @@ To avoid ambiguity between API IDs and contract IDs:
     "required": ["summary"]
   },
   "price_usdt": "1.0",
-  "price_atomic": "1000000",
-  "token_decimals": 6,
+  "price_atomic": "1000000000000000000",
+  "token_decimals": 18,
   "endpoint": "https://supplier-agent.example.com/task",
   "supplier_wallet": "0xSupplierAddress",
   "version": "1.0.0",
@@ -90,8 +90,8 @@ To avoid ambiguity between API IDs and contract IDs:
   "buyer_wallet": "0xBuyerAddress",
   "supplier_wallet": "0xSupplierAddress",
   "amount_usdt": "1.0",
-  "amount_atomic": "1000000",
-  "token_decimals": 6,
+  "amount_atomic": "1000000000000000000",
+  "token_decimals": 18,
   "token_address": "0xUSDT",
   "chain_id": 56,
   "status": "CREATED",
@@ -117,7 +117,7 @@ To avoid ambiguity between API IDs and contract IDs:
   "buyer": "0xBuyerAddress",
   "supplier": "0xSupplierAddress",
   "token": "0xUSDT",
-  "amount_atomic": "1000000",
+  "amount_atomic": "1000000000000000000",
   "confirmations": 3,
   "verified_at": "2026-02-06T14:01:23Z"
 }
@@ -242,7 +242,7 @@ Verification rules:
 - `order_id` is globally unique and immutable.
 - Duplicate `OrderPaid` events for same `order_id` are ignored after first success.
 - Canonical payment event uniqueness key: `(tx_hash, log_index)`.
-- Dispatcher uses idempotency key: `dispatch:{order_id}`.
+- Dispatcher uses idempotency key: `dispatch-{order_id}`.
 - Callback can be accepted once after `RUNNING`; duplicate callbacks are ignored.
 - Retry policy:
   - Supplier call timeout: `30s`.

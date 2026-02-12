@@ -32,4 +32,8 @@ describe('price conversion', () => {
   it('converts display price to atomic', () => {
     expect(priceToAtomic('1.0', 6)).toBe(1000000n);
   });
+
+  it('defaults to 18 decimals for BSC USDT', () => {
+    expect(priceToAtomic('0.1')).toBe(100000000000000000n);
+  });
 });

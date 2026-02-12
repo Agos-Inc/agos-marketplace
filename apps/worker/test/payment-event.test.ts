@@ -15,8 +15,8 @@ const baseOrder: Order = {
   buyer_wallet: '0x0000000000000000000000000000000000000001',
   supplier_wallet: '0x0000000000000000000000000000000000000002',
   amount_usdt: '1.0',
-  amount_atomic: '1000000',
-  token_decimals: 6,
+  amount_atomic: '1000000000000000000',
+  token_decimals: 18,
   token_address: '0x0000000000000000000000000000000000000003',
   chain_id: 56,
   status: 'CREATED',
@@ -36,7 +36,7 @@ function buildRawLog(overrides?: Partial<RawOrderPaidLog>): RawOrderPaidLog {
       buyer: baseOrder.buyer_wallet,
       supplier: baseOrder.supplier_wallet,
       token: baseOrder.token_address,
-      amount: 1_000_000n
+      amount: 1_000_000_000_000_000_000n
     },
     transactionHash: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     blockNumber: 123n,
@@ -50,7 +50,7 @@ describe('payment-event helpers', () => {
     const parsed = parseOrderPaidLog(buildRawLog());
     expect(parsed).not.toBeNull();
     expect(parsed?.orderIdHex).toBe(baseOrder.order_id_hex);
-    expect(parsed?.amountAtomic).toBe(1_000_000n);
+    expect(parsed?.amountAtomic).toBe(1_000_000_000_000_000_000n);
   });
 
   it('defaults blockNumber to 0 when absent', () => {
@@ -84,7 +84,7 @@ describe('payment-event helpers', () => {
           buyer: baseOrder.buyer_wallet,
           supplier: baseOrder.supplier_wallet,
           token: baseOrder.token_address,
-          amount: 2_000_000n
+          amount: 2_000_000_000_000_000_000n
         }
       })
     );

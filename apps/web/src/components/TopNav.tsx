@@ -1,0 +1,42 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+const navItems = [
+  { href: '/', label: 'Marketplace' },
+  { href: '/orders', label: 'Orders' }
+];
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === '/') {
+    return pathname === href;
+  }
+  return pathname.startsWith(href);
+}
+
+export function TopNav() {
+  const pathname = usePathname();
+
+  return (
+    <header className="top-nav-wrap">
+      <div className="top-nav shell">
+        <Link href="/" className="brand-link">
+          <span className="brand-dot" />
+          <span className="brand-text">AGOS Marketplace</span>
+        </Link>
+        <nav className="tab-group">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href} className={`tab ${isActive(pathname, item.href) ? 'tab-active' : ''}`}>
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="network-pill">
+          <span className="network-ping" />
+          <span>BSC Mainnet</span>
+        </div>
+      </div>
+    </header>
+  );
+}

@@ -150,7 +150,7 @@ async function enqueuePaidOrders(): Promise<void> {
         attempts: env.DISPATCH_MAX_RETRY + 1,
         removeOnComplete: true,
         removeOnFail: false,
-        jobId: `dispatch:${order.order_id}`
+        jobId: `dispatch-${order.order_id}`
       }
     );
 
