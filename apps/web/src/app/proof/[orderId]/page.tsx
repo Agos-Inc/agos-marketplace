@@ -101,45 +101,49 @@ export default function ProofPage() {
               <div className="order-detail-grid">
                 <div>
                   <p className="meta-label">Order ID Hex</p>
-                  <p>{order.order_id_hex}</p>
+                  <p className="detail-value-code">{order.order_id_hex}</p>
                 </div>
                 <div>
                   <p className="meta-label">Listing ID</p>
-                  <p>{order.service_id}</p>
+                  <p className="detail-value">{order.service_id}</p>
                 </div>
                 <div>
                   <p className="meta-label">Listing ID Hex</p>
-                  <p>{order.service_id_hex}</p>
+                  <p className="detail-value-code">{order.service_id_hex}</p>
                 </div>
                 <div>
                   <p className="meta-label">Buyer Wallet</p>
-                  <p title={order.buyer_wallet}>{shortHex(order.buyer_wallet, 12, 8)}</p>
+                  <p className="detail-value-code" title={order.buyer_wallet}>
+                    {shortHex(order.buyer_wallet, 12, 8)}
+                  </p>
                 </div>
                 <div>
                   <p className="meta-label">Supplier Wallet</p>
-                  <p title={order.supplier_wallet}>{shortHex(order.supplier_wallet, 12, 8)}</p>
+                  <p className="detail-value-code" title={order.supplier_wallet}>
+                    {shortHex(order.supplier_wallet, 12, 8)}
+                  </p>
                 </div>
                 <div>
                   <p className="meta-label">Amount</p>
-                  <p>
+                  <p className="detail-value">
                     {order.amount_usdt} USDT ({order.amount_atomic} atomic)
                   </p>
                 </div>
                 <div>
                   <p className="meta-label">Token Address</p>
-                  <p>{order.token_address}</p>
+                  <p className="detail-value-code">{order.token_address}</p>
                 </div>
                 <div>
                   <p className="meta-label">Chain ID</p>
-                  <p>{order.chain_id}</p>
+                  <p className="detail-value">{order.chain_id}</p>
                 </div>
                 <div>
                   <p className="meta-label">Updated At</p>
-                  <p>{formatTime(order.updated_at)}</p>
+                  <p className="detail-value">{formatTime(order.updated_at)}</p>
                 </div>
                 <div className="detail-span">
                   <p className="meta-label">Transaction Hash</p>
-                  <p>{order.tx_hash ?? 'Waiting for on-chain payment event'}</p>
+                  <p className="detail-value-code">{order.tx_hash ?? 'Waiting for on-chain payment event'}</p>
                 </div>
                 {bscScanTxUrl ? (
                   <div className="detail-span">
@@ -160,35 +164,35 @@ export default function ProofPage() {
                 <div className="order-detail-grid">
                   <div>
                     <p className="meta-label">Purchase ID</p>
-                    <p>{paymentPreparation.purchase_id}</p>
+                    <p className="detail-value">{paymentPreparation.purchase_id}</p>
                   </div>
                   <div>
                     <p className="meta-label">Purchase ID Hex</p>
-                    <p>{paymentPreparation.purchase_id_hex}</p>
+                    <p className="detail-value-code">{paymentPreparation.purchase_id_hex}</p>
                   </div>
                   <div>
                     <p className="meta-label">Listing ID Hex</p>
-                    <p>{paymentPreparation.listing_id_hex}</p>
+                    <p className="detail-value-code">{paymentPreparation.listing_id_hex}</p>
                   </div>
                   <div>
                     <p className="meta-label">Router</p>
-                    <p>{paymentPreparation.payment_router_address}</p>
+                    <p className="detail-value-code">{paymentPreparation.payment_router_address}</p>
                   </div>
                   <div>
                     <p className="meta-label">Token</p>
-                    <p>{paymentPreparation.token_address}</p>
+                    <p className="detail-value-code">{paymentPreparation.token_address}</p>
                   </div>
                   <div>
                     <p className="meta-label">Amount Atomic</p>
-                    <p>{paymentPreparation.amount_atomic}</p>
+                    <p className="detail-value-code">{paymentPreparation.amount_atomic}</p>
                   </div>
                   <div>
                     <p className="meta-label">Supplier</p>
-                    <p>{paymentPreparation.supplier_wallet}</p>
+                    <p className="detail-value-code">{paymentPreparation.supplier_wallet}</p>
                   </div>
                   <div>
                     <p className="meta-label">Chain</p>
-                    <p>{paymentPreparation.chain_id}</p>
+                    <p className="detail-value">{paymentPreparation.chain_id}</p>
                   </div>
                 </div>
               ) : (
