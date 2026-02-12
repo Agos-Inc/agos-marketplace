@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 
 const navItems = [
   { href: '/', label: 'Marketplace' },
-  { href: '/orders', label: 'Orders' }
+  { href: '/orders', label: 'Orders' },
+  { href: '/about', label: 'About' }
 ];
 
 function isActive(pathname: string, href: string): boolean {
