@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { KpiStrip } from '../components/KpiStrip';
+import { MarketCharts } from '../components/MarketCharts';
 import { OrderTable } from '../components/OrderTable';
 import { StatusBadge } from '../components/StatusBadge';
 import { TopNav } from '../components/TopNav';
@@ -231,6 +232,8 @@ export default function HomePage() {
         </section>
 
         <KpiStrip counts={counts} />
+
+        <MarketCharts orders={sortedOrders} listings={listings} />
 
         {errorMessage ? (
           <section className="card card-danger">
