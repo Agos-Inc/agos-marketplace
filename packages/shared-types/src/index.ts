@@ -1,4 +1,4 @@
-import { keccak256, toHex } from 'viem';
+import { keccak256, parseUnits, toHex } from 'viem';
 import { z } from 'zod';
 
 export const ORDER_STATES = [
@@ -37,13 +37,30 @@ export function idToHex(value: string): `0x${string}` {
   return keccak256(toHex(normalized));
 }
 
-export function priceToAtomic(price: string, decimals = 6): bigint {
-  const numeric = Number(price);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    throw new Error('price must be a positive number string');
+export const DEFAULT_TOKEN_DECIMALS = 18;
+
+export function priceToAtomic(price: string, decimals = DEFAULT_TOKEN_DECIMALS): bigint {
+  if (!Number.isInteger(decimals) || decimals <= 0) {
+    throw new Error('decimals must be a positive integer');
   }
-  const factor = 10 ** decimals;
-  return BigInt(Math.round(numeric * factor));
+
+  const normalized = price.trim();
+  if (!normalized) {
+    throw new Error('price must be a positive decimal string');
+  }
+
+  let atomic: bigint;
+  try {
+    atomic = parseUnits(normalized, decimals);
+  } catch {
+    throw new Error('price must be a positive decimal string');
+  }
+
+  if (atomic <= 0n) {
+    throw new Error('price must be greater than zero');
+  }
+
+  return atomic;
 }
 
 const addressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'invalid address');
@@ -57,7 +74,7 @@ export const serviceManifestSchema = z.object({
   output_schema: z.record(z.string(), z.unknown()),
   price_usdt: z.string(),
   price_atomic: z.string().optional(),
-  token_decimals: z.number().int().positive().default(6),
+  token_decimals: z.number().int().positive().default(DEFAULT_TOKEN_DECIMALS),
   endpoint: z.url(),
   supplier_wallet: addressSchema,
   version: z.string().default('1.0.0'),
@@ -75,7 +92,7 @@ export const orderSchema = z.object({
   supplier_wallet: addressSchema,
   amount_usdt: z.string(),
   amount_atomic: z.string(),
-  token_decimals: z.number().int().positive().default(6),
+  token_decimals: z.number().int().positive().default(DEFAULT_TOKEN_DECIMALS),
   token_address: addressSchema,
   chain_id: z.number().int().positive(),
   status: z.enum(ORDER_STATES),

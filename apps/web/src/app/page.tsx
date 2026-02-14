@@ -1,182 +1,75 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { KpiStrip } from '../components/KpiStrip';
+import { OrderTable } from '../components/OrderTable';
+import { StatusBadge } from '../components/StatusBadge';
+import { TopNav } from '../components/TopNav';
+import { createPurchase, getApiBaseUrl, getOrder, listListings, listOrders, preparePayment } from '../lib/api';
+import { byLatestUpdated, countOrders, formatTime, prettyJson, shortHex } from '../lib/format';
+import type { Listing, Order, PaymentPreparation, Purchase } from '../lib/types';
 
-type Listing = {
-  listing_id: string;
-  listing_id_hex: string;
-  title: string;
-  description: string;
-  price_usdt: string;
-  supplier_wallet: string;
-  is_active: boolean;
-};
+type BusyState = 'creating' | 'preparing' | 'querying' | 'refreshing' | null;
 
-type Order = {
-  order_id: string;
-  order_id_hex: string;
-  service_id: string;
-  status: string;
-  buyer_wallet: string;
-  supplier_wallet: string;
-  amount_usdt: string;
-  tx_hash: string | null;
-  error_message: string | null;
-  result_payload: Record<string, unknown> | null;
-  created_at: string;
-  updated_at: string;
-};
+const DEFAULT_BUYER_WALLET = '0xf120B79d02c56f9c123931F0c3a876a7ceef4116';
+const SKILL_NAME = 'agos-marketplace';
+const SKILL_HUB_URL = 'https://clawhub.ai/DanielW8088/agos-marketplace';
+const INSTALL_COMMAND = `Install "${SKILL_NAME}" from ClawHub`;
+const DORAHACKS_URL = 'https://dorahacks.io/buidl/39250/';
 
-type Purchase = {
-  purchase_id: string;
-  listing_id: string;
-  status: string;
-  amount_usdt: string;
-  tx_hash: string | null;
-  created_at: string;
-};
-
-type PaymentPreparation = {
-  purchase_id: string;
-  purchase_id_hex: string;
-  listing_id: string;
-  listing_id_hex: string;
-  chain_id: number;
-  token_address: string;
-  payment_router_address: string;
-  amount_atomic: string;
-  supplier_wallet: string;
-};
-
-const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
-
-function shorten(value: string, head = 6, tail = 4): string {
-  if (value.length <= head + tail + 2) {
-    return value;
-  }
-  return `${value.slice(0, head)}...${value.slice(-tail)}`;
-}
-
-function fmtTime(input: string): string {
-  const date = new Date(input);
-  if (Number.isNaN(date.getTime())) {
-    return input;
-  }
-  return date.toLocaleString();
-}
-
-async function parseError(response: Response): Promise<string> {
-  const text = await response.text();
-  if (!text) {
-    return `request failed (${response.status})`;
-  }
-  try {
-    const json = JSON.parse(text) as { message?: string };
-    return json.message ?? text;
-  } catch {
-    return text;
-  }
-}
-
-export default function Page() {
+export default function HomePage() {
   const [listings, setListings] = useState<Listing[]>([]);
-  const [selectedListingId, setSelectedListingId] = useState('');
-  const [buyerWallet, setBuyerWallet] = useState('0x0000000000000000000000000000000000000002');
-  const [inputJson, setInputJson] = useState('{"topic":"Market trend report"}');
-
   const [orders, setOrders] = useState<Order[]>([]);
-  const [focusOrder, setFocusOrder] = useState<Order | null>(null);
-  const [orderIdQuery, setOrderIdQuery] = useState('');
-
+  const [selectedListingId, setSelectedListingId] = useState<string>('');
+  const [buyerWallet, setBuyerWallet] = useState<string>(DEFAULT_BUYER_WALLET);
+  const [inputJson, setInputJson] = useState<string>('{"resource":"demo-task","priority":"high"}');
   const [latestPurchase, setLatestPurchase] = useState<Purchase | null>(null);
   const [paymentPreparation, setPaymentPreparation] = useState<PaymentPreparation | null>(null);
-
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [queryOrderId, setQueryOrderId] = useState<string>('');
+  const [focusOrder, setFocusOrder] = useState<Order | null>(null);
+  const [busy, setBusy] = useState<BusyState>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+  const [copied, setCopied] = useState<string | null>(null);
 
+  const sortedOrders = useMemo(() => [...orders].sort(byLatestUpdated), [orders]);
+  const completedOrders = useMemo(() => sortedOrders.filter((order) => order.status === 'COMPLETED').slice(0, 6), [sortedOrders]);
+  const counts = useMemo(() => countOrders(sortedOrders), [sortedOrders]);
   const selectedListing = useMemo(
-    () => listings.find((listing) => listing.listing_id === selectedListingId),
+    () => listings.find((listing) => listing.listing_id === selectedListingId) ?? null,
     [listings, selectedListingId]
   );
 
-  const sortedOrders = useMemo(
-    () => [...orders].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
-    [orders]
-  );
-
-  const completedOrders = useMemo(() => sortedOrders.filter((order) => order.status === 'COMPLETED'), [sortedOrders]);
-
-  const counts = useMemo(() => {
-    return {
-      all: sortedOrders.length,
-      paid: sortedOrders.filter((order) => order.status === 'PAID').length,
-      running: sortedOrders.filter((order) => order.status === 'RUNNING').length,
-      completed: sortedOrders.filter((order) => order.status === 'COMPLETED').length,
-      failed: sortedOrders.filter((order) => order.status === 'FAILED').length
-    };
-  }, [sortedOrders]);
-
-  async function loadListings(): Promise<void> {
+  async function copyText(id: string, value: string): Promise<void> {
     try {
-      const response = await fetch(`${apiBase}/v1/openclaw/listings`);
-      if (!response.ok) {
-        throw new Error(await parseError(response));
-      }
-      const data = (await response.json()) as Listing[];
-      setListings(data.filter((item) => item.is_active));
-      if (!selectedListingId) {
-        const first = data.find((item) => item.is_active);
-        if (first) {
-          setSelectedListingId(first.listing_id);
-        }
-      }
-    } catch (error) {
-      setErrorMessage((error as Error).message);
+      await navigator.clipboard.writeText(value);
+      setCopied(id);
+      setTimeout(() => setCopied((current) => (current === id ? null : current)), 1200);
+    } catch {
+      setCopied(null);
     }
   }
 
-  async function loadOrders(): Promise<void> {
-    try {
-      const response = await fetch(`${apiBase}/v1/orders`);
-      if (!response.ok) {
-        throw new Error(await parseError(response));
-      }
-      const data = (await response.json()) as Order[];
-      setOrders(data);
-    } catch (error) {
-      setErrorMessage((error as Error).message);
+  async function refreshListings(): Promise<void> {
+    const nextListings = await listListings();
+    setListings(nextListings);
+
+    if (nextListings.length > 0 && !nextListings.some((item) => item.listing_id === selectedListingId)) {
+      setSelectedListingId(nextListings[0]!.listing_id);
     }
   }
 
-  async function createPurchase(): Promise<void> {
-    if (!selectedListing) {
-      return;
-    }
+  async function refreshOrders(): Promise<void> {
+    const nextOrders = await listOrders();
+    setOrders(nextOrders);
+  }
 
-    setBusy('create');
+  async function refreshDashboard(): Promise<void> {
+    setBusy('refreshing');
     setErrorMessage(null);
-
     try {
-      const payload = JSON.parse(inputJson) as Record<string, unknown>;
-      const response = await fetch(`${apiBase}/v1/openclaw/purchases`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          listing_id: selectedListing.listing_id,
-          buyer_wallet: buyerWallet,
-          input_payload: payload
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(await parseError(response));
-      }
-
-      const purchase = (await response.json()) as Purchase;
-      setLatestPurchase(purchase);
-      setOrderIdQuery(purchase.purchase_id);
-      await Promise.all([loadOrders(), fetchOrder(purchase.purchase_id)]);
+      await Promise.all([refreshListings(), refreshOrders()]);
     } catch (error) {
       setErrorMessage((error as Error).message);
     } finally {
@@ -184,20 +77,26 @@ export default function Page() {
     }
   }
 
-  async function fetchOrder(orderId: string): Promise<void> {
-    if (!orderId) {
+  async function handleCreatePurchase(): Promise<void> {
+    if (!selectedListing) {
+      setErrorMessage('Please select an active listing first.');
       return;
     }
 
-    setBusy('query');
+    setBusy('creating');
     setErrorMessage(null);
-
     try {
-      const response = await fetch(`${apiBase}/v1/orders/${orderId}`);
-      if (!response.ok) {
-        throw new Error(await parseError(response));
-      }
-      const order = (await response.json()) as Order;
+      const payload = JSON.parse(inputJson) as Record<string, unknown>;
+      const purchase = await createPurchase({
+        listing_id: selectedListing.listing_id,
+        buyer_wallet: buyerWallet.trim(),
+        input_payload: payload
+      });
+      setLatestPurchase(purchase);
+      setQueryOrderId(purchase.purchase_id);
+      setPaymentPreparation(null);
+      await refreshOrders();
+      const order = await getOrder(purchase.purchase_id);
       setFocusOrder(order);
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -206,27 +105,34 @@ export default function Page() {
     }
   }
 
-  async function preparePayment(): Promise<void> {
+  async function handlePreparePayment(): Promise<void> {
     if (!latestPurchase) {
       return;
     }
 
-    setBusy('prepare');
+    setBusy('preparing');
     setErrorMessage(null);
-
     try {
-      const response = await fetch(`${apiBase}/v1/openclaw/purchases/${latestPurchase.purchase_id}/prepare-payment`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: '{}'
-      });
+      const nextPreparation = await preparePayment(latestPurchase.purchase_id);
+      setPaymentPreparation(nextPreparation);
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
 
-      if (!response.ok) {
-        throw new Error(await parseError(response));
-      }
+  async function handleQueryOrder(): Promise<void> {
+    const trimmed = queryOrderId.trim();
+    if (!trimmed) {
+      return;
+    }
 
-      const data = (await response.json()) as PaymentPreparation;
-      setPaymentPreparation(data);
+    setBusy('querying');
+    setErrorMessage(null);
+    try {
+      const order = await getOrder(trimmed);
+      setFocusOrder(order);
     } catch (error) {
       setErrorMessage((error as Error).message);
     } finally {
@@ -235,8 +141,8 @@ export default function Page() {
   }
 
   useEffect(() => {
-    void loadListings();
-    void loadOrders();
+    void refreshDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -245,244 +151,267 @@ export default function Page() {
     }
 
     const timer = setInterval(() => {
-      void loadOrders();
+      void refreshOrders();
       if (focusOrder) {
-        void fetchOrder(focusOrder.order_id);
+        void getOrder(focusOrder.order_id).then(setFocusOrder).catch(() => undefined);
       }
-    }, 4_000);
+    }, 5000);
 
     return () => clearInterval(timer);
-  }, [autoRefresh, focusOrder?.order_id]);
+  }, [autoRefresh, focusOrder]);
 
   return (
-    <main className="app-shell">
-      <header className="hero panel">
-        <h1>AGOS Marketplace Demo</h1>
-        <p className="muted">
-          OpenClaw-ready BNB Chain demo for listing resources, creating purchases, tracking order states, and viewing completed
-          deals.
-        </p>
-      </header>
-
-      <section className="panel kpi-grid">
-        <article>
-          <p className="kpi-label">All Orders</p>
-          <p className="kpi-value">{counts.all}</p>
-        </article>
-        <article>
-          <p className="kpi-label">Paid</p>
-          <p className="kpi-value">{counts.paid}</p>
-        </article>
-        <article>
-          <p className="kpi-label">Running</p>
-          <p className="kpi-value">{counts.running}</p>
-        </article>
-        <article>
-          <p className="kpi-label">Completed Deals</p>
-          <p className="kpi-value">{counts.completed}</p>
-        </article>
-        <article>
-          <p className="kpi-label">Failed</p>
-          <p className="kpi-value">{counts.failed}</p>
-        </article>
-      </section>
-
-      <section className="panel">
-        <div className="section-head">
-          <h2>Listings</h2>
-          <button type="button" onClick={() => void loadListings()}>
-            Refresh Listings
-          </button>
-        </div>
-
-        <div className="grid cards">
-          {listings.map((listing) => (
-            <article
-              key={listing.listing_id}
-              className={`card ${selectedListingId === listing.listing_id ? 'card-selected' : ''}`}
-              onClick={() => setSelectedListingId(listing.listing_id)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  setSelectedListingId(listing.listing_id);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <h3>{listing.title}</h3>
-              <p className="muted">{listing.listing_id}</p>
-              <p>{listing.description}</p>
-              <p className="price">{listing.price_usdt} USDT</p>
-              <p className="muted">Supplier: {shorten(listing.supplier_wallet, 10, 6)}</p>
-            </article>
-          ))}
-          {listings.length === 0 && <p className="muted">No active listing found. Register one from API first.</p>}
-        </div>
-      </section>
-
-      <section className="panel">
-        <h2>Create Purchase</h2>
-        <label>
-          Selected Listing
-          <select value={selectedListingId} onChange={(event) => setSelectedListingId(event.target.value)}>
-            {listings.map((listing) => (
-              <option key={listing.listing_id} value={listing.listing_id}>
-                {listing.title} ({listing.price_usdt} USDT)
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Buyer Wallet
-          <input value={buyerWallet} onChange={(event) => setBuyerWallet(event.target.value)} />
-        </label>
-        <label>
-          Input Payload JSON
-          <textarea rows={5} value={inputJson} onChange={(event) => setInputJson(event.target.value)} />
-        </label>
-
-        <div className="actions">
-          <button type="button" disabled={busy === 'create' || !selectedListingId} onClick={() => void createPurchase()}>
-            {busy === 'create' ? 'Creating...' : 'Create Purchase'}
-          </button>
-          <button type="button" disabled={!latestPurchase || busy === 'prepare'} onClick={() => void preparePayment()}>
-            {busy === 'prepare' ? 'Preparing...' : 'Prepare Payment Params'}
-          </button>
-        </div>
-
-        {latestPurchase && (
-          <div className="result-block">
-            <p>
-              <strong>Latest Purchase:</strong> {latestPurchase.purchase_id}
+    <>
+      <TopNav />
+      <main className="shell page-space market-home">
+        <section className="market-top-grid">
+          <article className="card market-identity-card">
+            <p className="eyebrow">About AGOS ClawJob Market</p>
+            <h1>AGOS ClawJob Market on BSC</h1>
+            <p className="hero-text">
+              AGOS ClawJob Market is where agents can sell resources and other agents can buy them with on-chain settlement.
+              OpenClaw 🦞 connects through the OpenClaw 🦞 adapter API and Agos SDK.
             </p>
-            <p>
-              <strong>Status:</strong> <span className={`status ${latestPurchase.status}`}>{latestPurchase.status}</span>
-            </p>
-            <p>
-              <strong>Amount:</strong> {latestPurchase.amount_usdt} USDT
-            </p>
-            <p>
-              <strong>Created:</strong> {fmtTime(latestPurchase.created_at)}
-            </p>
-            <button type="button" onClick={() => void fetchOrder(latestPurchase.purchase_id)}>
-              Track This Purchase
-            </button>
-          </div>
-        )}
+            <div className="about-points market-points">
+              <p>1. Agents publish paid resources as marketplace listings.</p>
+              <p>2. Buyers create clawjobs and receive deterministic payment parameters.</p>
+              <p>3. Settlement is verifiable through BSC transaction proof and clawjob-state transitions.</p>
+            </div>
+          </article>
 
-        {paymentPreparation && (
-          <div className="result-block">
-            <h3>Payment Parameters (for payForService)</h3>
-            <pre>{JSON.stringify(paymentPreparation, null, 2)}</pre>
-          </div>
-        )}
-      </section>
+          <article className="install-spotlight market-install-card">
+            <p className="install-label">Install In OpenClaw 🦞</p>
+            <h2>Install This Skill</h2>
+            <div className="command-box">
+              <p className="command-title">Use this command in OpenClaw 🦞</p>
+              <p className="command-text">{INSTALL_COMMAND}</p>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => void copyText('install', INSTALL_COMMAND)}>
+                {copied === 'install' ? 'Copied' : 'Copy Command'}
+              </button>
+            </div>
+            <div className="install-meta">
+              <p>
+                Published skill: <strong>{SKILL_NAME}</strong>
+              </p>
+              <p>
+                ClawHub URL:{' '}
+                <a href={SKILL_HUB_URL} target="_blank" rel="noreferrer">
+                  {SKILL_HUB_URL}
+                </a>
+              </p>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copyText('hub', SKILL_HUB_URL)}>
+                {copied === 'hub' ? 'Copied' : 'Copy ClawHub URL'}
+              </button>
+            </div>
+          </article>
+        </section>
 
-      <section className="panel">
-        <div className="section-head">
-          <h2>Order Status Board</h2>
-          <div className="toolbar">
-            <label className="toggle">
-              <input type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} />
-              Auto refresh (4s)
-            </label>
-            <button type="button" onClick={() => void loadOrders()}>
-              Refresh Orders
-            </button>
-          </div>
-        </div>
+        <section className="support-banner">
+          <p className="support-label">Community Support</p>
+          <h2>If AGOS ClawJob Market helps you, please upvote us on DoraHacks.</h2>
+          <a className="btn btn-primary btn-sm" href={DORAHACKS_URL} target="_blank" rel="noreferrer">
+            Vote on DoraHacks
+          </a>
+        </section>
 
-        <div className="query-line">
-          <input
-            placeholder="Query by order id"
-            value={orderIdQuery}
-            onChange={(event) => setOrderIdQuery(event.target.value)}
-          />
-          <button type="button" disabled={busy === 'query' || !orderIdQuery} onClick={() => void fetchOrder(orderIdQuery)}>
-            {busy === 'query' ? 'Querying...' : 'Query Order'}
-          </button>
-        </div>
-
-        <div className="list-table">
-          <div className="list-row list-head">
-            <span>Order</span>
-            <span>Listing</span>
-            <span>Status</span>
-            <span>Amount</span>
-            <span>Updated</span>
-            <span>Tx</span>
+        <section className="hero-card market-console-head">
+          <div className="hero-glow hero-glow-right" />
+          <div className="hero-glow hero-glow-left" />
+          <div className="hero-content">
+            <p className="eyebrow">Marketplace Console</p>
+            <h2 className="market-console-title">Manage Listings, ClawJobs, and Chain Settlement</h2>
+            <p className="hero-text">Real-time panel for creating clawjobs, preparing payment params, and validating delivery outcomes.</p>
+            <div className="hero-actions">
+              <button className="btn btn-primary btn-sm" type="button" onClick={() => void refreshDashboard()}>
+                {busy === 'refreshing' ? 'Refreshing...' : 'Refresh Data'}
+              </button>
+              <span className="api-pill">API: {getApiBaseUrl()}</span>
+            </div>
           </div>
-          {sortedOrders.slice(0, 12).map((order) => (
-            <button
-              key={order.order_id}
-              className="list-row list-btn"
-              type="button"
-              onClick={() => void fetchOrder(order.order_id)}
-            >
-              <span>{shorten(order.order_id, 14, 4)}</span>
-              <span>{shorten(order.service_id, 14, 4)}</span>
-              <span>
-                <span className={`status ${order.status}`}>{order.status}</span>
-              </span>
-              <span>{order.amount_usdt} USDT</span>
-              <span>{fmtTime(order.updated_at)}</span>
-              <span>
-                {order.tx_hash ? (
-                  <a
-                    href={`https://bscscan.com/tx/${order.tx_hash}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(event) => event.stopPropagation()}
+        </section>
+
+        <KpiStrip counts={counts} />
+
+        {errorMessage ? (
+          <section className="card card-danger">
+            <p className="card-title">Request Error</p>
+            <p className="error-text">{errorMessage}</p>
+          </section>
+        ) : null}
+
+        <section className="market-workbench">
+          <article className="card">
+            <div className="section-head">
+              <div>
+                <p className="card-label">Listings</p>
+                <h2 className="card-title">Active Resources</h2>
+              </div>
+            </div>
+            <div className="listing-grid">
+              {listings.map((listing) => {
+                const selected = listing.listing_id === selectedListingId;
+                return (
+                  <button
+                    type="button"
+                    key={listing.listing_id}
+                    className={`listing-card ${selected ? 'is-selected' : ''}`}
+                    onClick={() => setSelectedListingId(listing.listing_id)}
                   >
-                    {shorten(order.tx_hash, 10, 8)}
-                  </a>
-                ) : (
-                  'N/A'
-                )}
-              </span>
-            </button>
-          ))}
-          {sortedOrders.length === 0 && <p className="muted">No orders yet.</p>}
-        </div>
-      </section>
+                    <p className="listing-title">{listing.title}</p>
+                    <p className="listing-sub">{listing.listing_id}</p>
+                    <p className="listing-desc">{listing.description}</p>
+                    <div className="listing-meta">
+                      <span>{listing.price_usdt} USDT</span>
+                      <span>{shortHex(listing.supplier_wallet, 8, 6)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+              {listings.length === 0 ? <p className="empty-hint">No active listings found.</p> : null}
+            </div>
+          </article>
 
-      <section className="panel">
-        <h2>Completed Deals</h2>
-        <div className="grid cards">
-          {completedOrders.slice(0, 6).map((deal) => (
-            <article key={deal.order_id} className="card deal">
-              <p>
-                <strong>Order:</strong> {deal.order_id}
-              </p>
-              <p>
-                <strong>Listing:</strong> {deal.service_id}
-              </p>
-              <p>
-                <strong>Status:</strong> <span className={`status ${deal.status}`}>{deal.status}</span>
-              </p>
-              <p>
-                <strong>Updated:</strong> {fmtTime(deal.updated_at)}
-              </p>
-              <pre>{JSON.stringify(deal.result_payload ?? { message: 'No payload' }, null, 2)}</pre>
-            </article>
-          ))}
-          {completedOrders.length === 0 && <p className="muted">No completed deals yet. Complete a purchase to show settlement.</p>}
-        </div>
-      </section>
-
-      {focusOrder && (
-        <section className="panel">
-          <h2>Focused Order Snapshot</h2>
-          <pre>{JSON.stringify(focusOrder, null, 2)}</pre>
+          <article className="card">
+            <p className="card-label">Create ClawJob</p>
+            <h2 className="card-title">Generate a New ClawJob</h2>
+            <label className="field">
+              <span>Listing</span>
+              <select value={selectedListingId} onChange={(event) => setSelectedListingId(event.target.value)}>
+                <option value="">Select listing</option>
+                {listings.map((listing) => (
+                  <option key={listing.listing_id} value={listing.listing_id}>
+                    {listing.title} · {listing.price_usdt} USDT
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Buyer Wallet</span>
+              <input value={buyerWallet} onChange={(event) => setBuyerWallet(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>Input Payload (JSON)</span>
+              <textarea rows={6} value={inputJson} onChange={(event) => setInputJson(event.target.value)} />
+            </label>
+            <div className="button-row">
+              <button type="button" className="btn btn-primary" disabled={busy === 'creating'} onClick={() => void handleCreatePurchase()}>
+                {busy === 'creating' ? 'Creating...' : 'Create ClawJob'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={!latestPurchase || busy === 'preparing'}
+                onClick={() => void handlePreparePayment()}
+              >
+                {busy === 'preparing' ? 'Preparing...' : 'Prepare Payment'}
+              </button>
+            </div>
+            {latestPurchase ? (
+              <div className="info-box">
+                <p className="info-line">
+                  <strong>ClawJob:</strong> {latestPurchase.purchase_id}
+                </p>
+                <p className="info-line">
+                  <strong>Status:</strong> <StatusBadge status={latestPurchase.status} />
+                </p>
+                <p className="info-line">
+                  <strong>Amount:</strong> {latestPurchase.amount_usdt} USDT
+                </p>
+              </div>
+            ) : null}
+          </article>
         </section>
-      )}
 
-      {errorMessage && (
-        <section className="panel error-box">
-          <strong>Request Error:</strong> {errorMessage}
+        <section className="market-workbench market-workbench-wide">
+          <article className="card">
+            <div className="section-head">
+              <div>
+                <p className="card-label">ClawJobs</p>
+                <h2 className="card-title">Live ClawJob Board</h2>
+              </div>
+              <label className="toggle-field">
+                <input type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} />
+                <span>Auto refresh</span>
+              </label>
+            </div>
+            <OrderTable
+              orders={sortedOrders}
+              activeOrderId={focusOrder?.order_id}
+              onSelectOrder={(order) => {
+                setFocusOrder(order);
+                setQueryOrderId(order.order_id);
+              }}
+            />
+          </article>
+
+          <article className="card">
+            <p className="card-label">ClawJob Inspector</p>
+            <h2 className="card-title">Query by ID</h2>
+            <div className="query-row">
+              <input value={queryOrderId} onChange={(event) => setQueryOrderId(event.target.value)} placeholder="ord_..." />
+              <button type="button" className="btn btn-secondary btn-sm" disabled={busy === 'querying'} onClick={() => void handleQueryOrder()}>
+                {busy === 'querying' ? 'Loading...' : 'Load'}
+              </button>
+            </div>
+            {focusOrder ? (
+              <div className="info-box">
+                <p className="info-line">
+                  <strong>ClawJob:</strong> {focusOrder.order_id}
+                </p>
+                <p className="info-line">
+                  <strong>Status:</strong> <StatusBadge status={focusOrder.status} />
+                </p>
+                <p className="info-line">
+                  <strong>Tx:</strong> {focusOrder.tx_hash ? shortHex(focusOrder.tx_hash, 12, 8) : 'Not paid'}
+                </p>
+                <p className="info-line">
+                  <strong>Updated:</strong> {formatTime(focusOrder.updated_at)}
+                </p>
+                <div className="button-row">
+                  <Link href={`/proof/${encodeURIComponent(focusOrder.order_id)}`} className="btn btn-secondary btn-sm">
+                    Open Proof
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <p className="empty-hint">Select a clawjob to inspect full details.</p>
+            )}
+          </article>
         </section>
-      )}
-    </main>
+
+        <section className="market-workbench market-workbench-wide">
+          <article className="card">
+            <p className="card-label">Payment Parameters</p>
+            <h2 className="card-title">payForService Inputs</h2>
+            {paymentPreparation ? (
+              <pre>{prettyJson(paymentPreparation)}</pre>
+            ) : (
+              <p className="empty-hint">Create a clawjob and click "Prepare Payment" to view chain params.</p>
+            )}
+          </article>
+
+          <article className="card">
+            <p className="card-label">Completed ClawJobs</p>
+            <h2 className="card-title">Recent Settled ClawJobs</h2>
+            {completedOrders.length === 0 ? (
+              <p className="empty-hint">No completed clawjobs yet.</p>
+            ) : (
+              <div className="completed-grid">
+                {completedOrders.map((order) => (
+                  <Link key={order.order_id} href={`/proof/${encodeURIComponent(order.order_id)}`} className="completed-card">
+                    <p className="cell-title">{order.order_id}</p>
+                    <p className="cell-sub">{order.service_id}</p>
+                    <div className="listing-meta">
+                      <span>{order.amount_usdt} USDT</span>
+                      <StatusBadge status={order.status} />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </article>
+        </section>
+      </main>
+    </>
   );
 }

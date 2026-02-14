@@ -16,7 +16,7 @@ model Service {
   outputSchema   Json     @map("output_schema")
   priceUsdt      String   @map("price_usdt")
   priceAtomic    String   @map("price_atomic")
-  tokenDecimals  Int      @default(6) @map("token_decimals")
+  tokenDecimals  Int      @default(18) @map("token_decimals")
   endpoint       String
   supplierWallet String   @map("supplier_wallet")
   version        String   @default("1.0.0")
@@ -38,7 +38,7 @@ model Order {
   supplierWallet String   @map("supplier_wallet")
   amountUsdt     String   @map("amount_usdt")
   amountAtomic   String   @map("amount_atomic")
-  tokenDecimals  Int      @default(6) @map("token_decimals")
+  tokenDecimals  Int      @default(18) @map("token_decimals")
   tokenAddress   String   @map("token_address")
   chainId        Int      @map("chain_id")
   status         String

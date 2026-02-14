@@ -32,6 +32,13 @@ const config: HardhatUserConfig = {
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 97
     }
+  },
+  etherscan: {
+    enabled: Boolean(process.env.BSCSCAN_API_KEY || process.env.ETHERSCAN_API_KEY),
+    apiKey: process.env.BSCSCAN_API_KEY ?? process.env.ETHERSCAN_API_KEY ?? ''
+  },
+  sourcify: {
+    enabled: true
   }
 };
 

@@ -155,13 +155,13 @@ Core rules:
 ### 5.2 Amount Handling
 
 - Business amount: `amount_usdt` string (e.g. `1.0`)
-- Settlement amount: `amount_atomic` integer string (e.g. `1000000`)
-- Token decimals fixed at 6 for USDT
+- Settlement amount: `amount_atomic` integer string (e.g. `1000000000000000000`)
+- Token decimals fixed at 18 for BSC USDT
 
 ### 5.3 Reliability Strategy
 
 - Event uniqueness key: `(tx_hash, log_index)`
-- Dispatch idempotency key: `dispatch:{order_id}`
+- Dispatch idempotency key: `dispatch-{order_id}`
 - Callback accepted once after `RUNNING`
 - Retry policy: one retry after timeout
 
