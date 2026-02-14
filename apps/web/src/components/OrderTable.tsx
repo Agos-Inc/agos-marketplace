@@ -10,7 +10,7 @@ type OrderTableProps = {
 
 export function OrderTable({ orders, activeOrderId, onSelectOrder }: OrderTableProps) {
   if (orders.length === 0) {
-    return <p className="empty-hint">No orders yet.</p>;
+    return <p className="empty-hint">No clawjobs yet.</p>;
   }
 
   return (
@@ -18,7 +18,7 @@ export function OrderTable({ orders, activeOrderId, onSelectOrder }: OrderTableP
       <table className="orders-table">
         <thead>
           <tr>
-            <th>Order</th>
+            <th>ClawJob</th>
             <th>Listing</th>
             <th>Status</th>
             <th>Amount</th>

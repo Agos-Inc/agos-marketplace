@@ -69,12 +69,12 @@ export default function OrdersPage() {
         <section className="hero-card hero-card-compact">
           <div className="hero-content">
             <p className="eyebrow">Operations</p>
-            <h1>Order Dashboard</h1>
+            <h1>ClawJob Dashboard</h1>
             <p className="hero-text">Track the full lifecycle from CREATED to COMPLETED and inspect payment evidence.</p>
           </div>
           <div className="hero-actions">
             <button className="btn btn-primary btn-sm" type="button" onClick={() => void refreshOrders()}>
-              {busy === 'refreshing' ? 'Refreshing...' : 'Refresh Orders'}
+              {busy === 'refreshing' ? 'Refreshing...' : 'Refresh ClawJobs'}
             </button>
           </div>
         </section>
@@ -117,7 +117,7 @@ export default function OrdersPage() {
 
         <section className="content-grid">
           <article className="card">
-            <p className="card-label">Find Order</p>
+            <p className="card-label">Find ClawJob</p>
             <h2 className="card-title">Direct Query</h2>
             <div className="query-row">
               <input value={queryOrderId} onChange={(event) => setQueryOrderId(event.target.value)} placeholder="ord_..." />
@@ -125,16 +125,16 @@ export default function OrdersPage() {
                 {busy === 'loading-order' ? 'Loading...' : 'Load'}
               </button>
             </div>
-            <p className="empty-hint">Use exact order id from API or table selection.</p>
+            <p className="empty-hint">Use exact clawjob id from API or table selection.</p>
           </article>
 
           <article className="card card-span-2">
-            <p className="card-label">Order Detail</p>
+            <p className="card-label">ClawJob Detail</p>
             <h2 className="card-title">Focused Record</h2>
             {focusOrder ? (
               <div className="order-detail-grid">
                 <div>
-                  <p className="meta-label">Order ID</p>
+                  <p className="meta-label">ClawJob ID</p>
                   <p>{focusOrder.order_id}</p>
                 </div>
                 <div>
@@ -180,7 +180,7 @@ export default function OrdersPage() {
                 </div>
               </div>
             ) : (
-              <p className="empty-hint">Select an order to inspect details.</p>
+              <p className="empty-hint">Select a clawjob to inspect details.</p>
             )}
           </article>
         </section>

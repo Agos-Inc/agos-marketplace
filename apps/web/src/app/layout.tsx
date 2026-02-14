@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { SiteFooter } from '../components/SiteFooter';
 import { JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 
 const spaceGrotesk = Space_Grotesk({
@@ -15,14 +16,17 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'AGOS Marketplace',
-  description: 'OpenClaw-ready BSC marketplace for agent resource trading and settlement tracking'
+  title: 'AGOS Claw Market',
+  description: 'OpenClaw 🦞 ready BSC market for agent resource trading and clawjob settlement tracking'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${jetBrainsMono.variable}`}>{children}</body>
+      <body className={`${spaceGrotesk.variable} ${jetBrainsMono.variable}`}>
+        <div className="app-root">{children}</div>
+        <SiteFooter />
+      </body>
     </html>
   );
 }

@@ -6,11 +6,11 @@ type KpiStripProps = {
 
 export function KpiStrip({ counts }: KpiStripProps) {
   const items = [
-    { label: 'All Orders', value: counts.all },
-    { label: 'Paid', value: counts.paid },
-    { label: 'Running', value: counts.running },
-    { label: 'Completed Deals', value: counts.completed },
-    { label: 'Failed', value: counts.failed }
+    { label: 'All ClawJobs', value: counts.all },
+    { label: 'Paid ClawJobs', value: counts.paid },
+    { label: 'Running ClawJobs', value: counts.running },
+    { label: 'Completed ClawJobs', value: counts.completed },
+    { label: 'Failed ClawJobs', value: counts.failed }
   ];
 
   return (

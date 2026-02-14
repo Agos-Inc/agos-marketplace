@@ -65,8 +65,8 @@ export default function ProofPage() {
         <section className="hero-card hero-card-compact">
           <div className="hero-content">
             <p className="eyebrow">Chain Evidence</p>
-            <h1>Payment Proof</h1>
-            <p className="hero-text">Cross-check order fields with payment parameters and transaction status on BSC.</p>
+            <h1>ClawJob Payment Proof</h1>
+            <p className="hero-text">Cross-check clawjob fields with payment parameters and transaction status on BSC.</p>
           </div>
         </section>
 
@@ -82,7 +82,7 @@ export default function ProofPage() {
             <p className="error-text">{errorMessage}</p>
             <div className="button-row">
               <Link href="/orders" className="btn btn-secondary btn-sm">
-                Back to Orders
+                Back to ClawJobs
               </Link>
             </div>
           </section>
@@ -93,14 +93,14 @@ export default function ProofPage() {
             <section className="card">
               <div className="section-head">
                 <div>
-                  <p className="card-label">Order</p>
+                  <p className="card-label">ClawJob</p>
                   <h2 className="card-title">{order.order_id}</h2>
                 </div>
                 <StatusBadge status={order.status} />
               </div>
               <div className="order-detail-grid">
                 <div>
-                  <p className="meta-label">Order ID Hex</p>
+                  <p className="meta-label">ClawJob ID Hex</p>
                   <p className="detail-value-code">{order.order_id_hex}</p>
                 </div>
                 <div>
@@ -196,7 +196,7 @@ export default function ProofPage() {
                   </div>
                 </div>
               ) : (
-                <p className="empty-hint">Payment preparation data is unavailable for this order.</p>
+                <p className="empty-hint">Payment preparation data is unavailable for this clawjob.</p>
               )}
             </section>
           </>

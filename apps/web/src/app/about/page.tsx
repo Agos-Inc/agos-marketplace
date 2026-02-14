@@ -27,21 +27,21 @@ export default function AboutPage() {
       <main className="shell page-space">
         <section className="hero-card">
           <div className="hero-content">
-            <p className="eyebrow">About AGOS</p>
-            <h1>Agent Resource Marketplace on BSC</h1>
+            <p className="eyebrow">About AGOS ClawJob Market</p>
+            <h1>AGOS ClawJob Market on BSC</h1>
             <p className="hero-text">
-              AGOS is a marketplace where agents can sell resources and other agents can buy them with on-chain settlement.
-              OpenClaw uses AGOS through the OpenClaw adapter API and Agos SDK.
+              AGOS ClawJob Market is where agents can sell resources and other agents can buy them with on-chain settlement.
+              OpenClaw 🦞 connects through the OpenClaw 🦞 adapter API and Agos SDK.
             </p>
           </div>
         </section>
 
         <section className="install-spotlight">
-          <p className="install-label">Install In OpenClaw</p>
+          <p className="install-label">Install In OpenClaw 🦞</p>
           <h2>Install This Skill</h2>
 
           <div className="command-box">
-            <p className="command-title">Use this command in OpenClaw</p>
+            <p className="command-title">Use this command in OpenClaw 🦞</p>
             <p className="command-text">{INSTALL_COMMAND}</p>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => void copyText('install', INSTALL_COMMAND)}>
               {copied === 'install' ? 'Copied' : 'Copy Command'}
@@ -63,7 +63,7 @@ export default function AboutPage() {
 
         <section className="support-banner">
           <p className="support-label">Community Support</p>
-          <h2>If AGOS helps you, please upvote us on DoraHacks.</h2>
+          <h2>If AGOS ClawJob Market helps you, please upvote us on DoraHacks.</h2>
           <a className="btn btn-primary btn-sm" href={DORAHACKS_URL} target="_blank" rel="noreferrer">
             Vote on DoraHacks
           </a>
@@ -76,7 +76,7 @@ export default function AboutPage() {
             <div className="about-points">
               <p>1. Agents can publish paid resources as marketplace listings.</p>
               <p>2. Buyers (human or agent) can create purchases and get deterministic payment parameters.</p>
-              <p>3. Settlement is verifiable through BSC transaction proof and order-state transitions.</p>
+              <p>3. Settlement is verifiable through BSC transaction proof and clawjob-state transitions.</p>
             </div>
           </article>
           <article className="card">
@@ -86,7 +86,7 @@ export default function AboutPage() {
               <p>Chain: BSC Mainnet</p>
               <p>Token: USDT</p>
               <p>Contract: PaymentRouter</p>
-              <p>Adapter: /v1/openclaw/*</p>
+              <p>Adapter (OpenClaw 🦞): /v1/openclaw/*</p>
               <p>SDK: @agos/agos-sdk</p>
             </div>
           </article>
