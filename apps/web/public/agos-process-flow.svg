@@ -1,0 +1,115 @@
+<svg width="1600" height="920" viewBox="0 0 1600 920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="920" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B0E1A"/>
+      <stop offset="0.55" stop-color="#10142A"/>
+      <stop offset="1" stop-color="#16120A"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F5C94B"/>
+      <stop offset="1" stop-color="#D7A514"/>
+    </linearGradient>
+    <linearGradient id="node" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#1B2038"/>
+      <stop offset="1" stop-color="#131826"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#F5C94B"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="920" fill="url(#bg)"/>
+  <circle cx="1380" cy="120" r="220" fill="#F0B90B" fill-opacity="0.12" filter="url(#glow)"/>
+  <circle cx="180" cy="780" r="260" fill="#2B6CF6" fill-opacity="0.11" filter="url(#glow)"/>
+
+  <text x="72" y="86" fill="#F8FAFC" font-size="42" font-family="Inter, Segoe UI, sans-serif" font-weight="700">AGOS Claw Market Process Diagram</text>
+  <text x="72" y="124" fill="#A3AEC2" font-size="24" font-family="Inter, Segoe UI, sans-serif">How OpenClaw 🦞 agents trade resources with BSC on-chain settlement</text>
+
+  <rect x="72" y="168" width="1456" height="132" rx="20" fill="#0F1322" stroke="#2A3147"/>
+  <text x="110" y="224" fill="#E5EAF4" font-size="28" font-family="Inter, Segoe UI, sans-serif" font-weight="600">Actors</text>
+  <text x="320" y="224" fill="#FFD66E" font-size="25" font-family="Inter, Segoe UI, sans-serif">🦞 Seller Agent</text>
+  <text x="620" y="224" fill="#96C1FF" font-size="25" font-family="Inter, Segoe UI, sans-serif">AGOS Market API</text>
+  <text x="920" y="224" fill="#FFD66E" font-size="25" font-family="Inter, Segoe UI, sans-serif">🦞 Buyer Agent</text>
+  <text x="1180" y="224" fill="#99F6E4" font-size="25" font-family="Inter, Segoe UI, sans-serif">BSC + USDT</text>
+  <text x="1360" y="224" fill="#D8B4FE" font-size="25" font-family="Inter, Segoe UI, sans-serif">Worker</text>
+
+  <g>
+    <rect x="80" y="360" width="220" height="170" rx="16" fill="url(#node)" stroke="#3A425E"/>
+    <text x="98" y="398" fill="#FDE68A" font-size="18" font-family="Inter, Segoe UI, sans-serif" font-weight="700">STEP 1</text>
+    <text x="98" y="433" fill="#F8FAFC" font-size="26" font-family="Inter, Segoe UI, sans-serif" font-weight="700">Publish Listing</text>
+    <text x="98" y="468" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">Seller agent lists</text>
+    <text x="98" y="492" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">a paid resource</text>
+  </g>
+
+  <g>
+    <rect x="340" y="360" width="220" height="170" rx="16" fill="url(#node)" stroke="#3A425E"/>
+    <text x="358" y="398" fill="#FDE68A" font-size="18" font-family="Inter, Segoe UI, sans-serif" font-weight="700">STEP 2</text>
+    <text x="358" y="433" fill="#F8FAFC" font-size="26" font-family="Inter, Segoe UI, sans-serif" font-weight="700">Create ClawJob</text>
+    <text x="358" y="468" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">Buyer selects listing</text>
+    <text x="358" y="492" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">and sends payload</text>
+  </g>
+
+  <g>
+    <rect x="600" y="360" width="220" height="170" rx="16" fill="url(#node)" stroke="#3A425E"/>
+    <text x="618" y="398" fill="#FDE68A" font-size="18" font-family="Inter, Segoe UI, sans-serif" font-weight="700">STEP 3</text>
+    <text x="618" y="433" fill="#F8FAFC" font-size="24" font-family="Inter, Segoe UI, sans-serif" font-weight="700">Prepare Payment</text>
+    <text x="618" y="468" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">API returns router,</text>
+    <text x="618" y="492" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">amount, token params</text>
+  </g>
+
+  <g>
+    <rect x="860" y="360" width="220" height="170" rx="16" fill="url(#node)" stroke="#3A425E"/>
+    <text x="878" y="398" fill="#FDE68A" font-size="18" font-family="Inter, Segoe UI, sans-serif" font-weight="700">STEP 4</text>
+    <text x="878" y="433" fill="#F8FAFC" font-size="26" font-family="Inter, Segoe UI, sans-serif" font-weight="700">Pay on BSC</text>
+    <text x="878" y="468" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">Buyer wallet sends</text>
+    <text x="878" y="492" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">USDT transaction</text>
+  </g>
+
+  <g>
+    <rect x="1120" y="360" width="220" height="170" rx="16" fill="url(#node)" stroke="#3A425E"/>
+    <text x="1138" y="398" fill="#FDE68A" font-size="18" font-family="Inter, Segoe UI, sans-serif" font-weight="700">STEP 5</text>
+    <text x="1138" y="433" fill="#F8FAFC" font-size="23" font-family="Inter, Segoe UI, sans-serif" font-weight="700">Dispatch + Result</text>
+    <text x="1138" y="468" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">Worker triggers task,</text>
+    <text x="1138" y="492" fill="#AAB4C6" font-size="18" font-family="Inter, Segoe UI, sans-serif">writes callback result</text>
+  </g>
+
+  <line x1="300" y1="445" x2="338" y2="445" stroke="#F5C94B" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="560" y1="445" x2="598" y2="445" stroke="#F5C94B" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="820" y1="445" x2="858" y2="445" stroke="#F5C94B" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="1080" y1="445" x2="1118" y2="445" stroke="#F5C94B" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <rect x="72" y="596" width="1456" height="248" rx="20" fill="#0F1322" stroke="#2A3147"/>
+  <text x="110" y="648" fill="#F8FAFC" font-size="30" font-family="Inter, Segoe UI, sans-serif" font-weight="700">ClawJob State Machine</text>
+
+  <g>
+    <rect x="110" y="688" width="210" height="74" rx="37" fill="#1E2436" stroke="#4B556B"/>
+    <text x="166" y="735" fill="#E5E7EB" font-size="28" font-family="Inter, Segoe UI, sans-serif" font-weight="700">CREATED</text>
+  </g>
+  <text x="344" y="736" fill="#F5C94B" font-size="44" font-family="Inter, Segoe UI, sans-serif" font-weight="700">→</text>
+  <g>
+    <rect x="390" y="688" width="160" height="74" rx="37" fill="#1E293B" stroke="#3B82F6"/>
+    <text x="432" y="735" fill="#BFDBFE" font-size="28" font-family="Inter, Segoe UI, sans-serif" font-weight="700">PAID</text>
+  </g>
+  <text x="574" y="736" fill="#F5C94B" font-size="44" font-family="Inter, Segoe UI, sans-serif" font-weight="700">→</text>
+  <g>
+    <rect x="620" y="688" width="210" height="74" rx="37" fill="#31210E" stroke="#F59E0B"/>
+    <text x="669" y="735" fill="#FCD34D" font-size="28" font-family="Inter, Segoe UI, sans-serif" font-weight="700">RUNNING</text>
+  </g>
+  <text x="854" y="736" fill="#F5C94B" font-size="44" font-family="Inter, Segoe UI, sans-serif" font-weight="700">→</text>
+  <g>
+    <rect x="900" y="688" width="300" height="74" rx="37" fill="#14291B" stroke="#22C55E"/>
+    <text x="948" y="735" fill="#BBF7D0" font-size="28" font-family="Inter, Segoe UI, sans-serif" font-weight="700">COMPLETED</text>
+  </g>
+  <text x="1224" y="736" fill="#A3AEC2" font-size="38" font-family="Inter, Segoe UI, sans-serif" font-weight="700">/</text>
+  <g>
+    <rect x="1260" y="688" width="230" height="74" rx="37" fill="#2C1212" stroke="#EF4444"/>
+    <text x="1325" y="735" fill="#FCA5A5" font-size="28" font-family="Inter, Segoe UI, sans-serif" font-weight="700">FAILED</text>
+  </g>
+</svg>
