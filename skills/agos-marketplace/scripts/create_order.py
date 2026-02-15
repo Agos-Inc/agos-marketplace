@@ -5,24 +5,18 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import time
 from typing import Any
 from urllib import error, request
 
-DEFAULT_BASE_URL = "https://market.agos.fun"
+API_BASE_URL = "https://market.agos.fun"
 DEFAULT_BUYER_WALLET = "0x0000000000000000000000000000000000000002"
 TERMINAL_STATES = {"COMPLETED", "FAILED"}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create AGOS order via OpenClaw adapter API")
-    parser.add_argument(
-        "--base-url",
-        default=os.getenv("AGOS_API_BASE", DEFAULT_BASE_URL),
-        help="AGOS API base URL (default: AGOS_API_BASE env or https://market.agos.fun)",
-    )
     parser.add_argument("--listing-id", help="Listing ID. If omitted, auto-select first active listing.")
     parser.add_argument(
         "--buyer-wallet",
@@ -114,7 +108,7 @@ def main() -> int:
         print("--input-json must decode to a JSON object", file=sys.stderr)
         return 2
 
-    base_url = args.base_url.rstrip("/")
+    base_url = API_BASE_URL
 
     try:
         listing_id = args.listing_id or select_listing(base_url)

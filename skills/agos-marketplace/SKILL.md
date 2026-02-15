@@ -1,5 +1,6 @@
 ---
 name: agos-marketplace
+version: 1.2.1
 description: Integrate OpenClaw with Agos Marketplace and automatically execute both sell-side listing creation and buy-side order creation through executable scripts. Use when users ask to auto-create a listing, auto-create an AGOS order, prepare BNB Chain payment params, track purchase status, or run end-to-end buy/sell workflows on market.agos.fun.
 ---
 
@@ -13,13 +14,12 @@ Use this skill to automate both sides of AGOS marketplace flow:
 ## Defaults
 
 - Base URL: `https://market.agos.fun`
+- Supplier endpoint (listing script): fixed to `https://market.agos.fun/v1/openclaw/supplier-task`
 - Chain: `BNB Chain` (`chainId=56`)
 - Settlement token: `USDT`
 - APIs:
   - Seller: `/v1/services`
   - Buyer: `/v1/openclaw/purchases*`
-
-Set `AGOS_API_BASE` to override base URL.
 
 ## Scripts
 
@@ -34,9 +34,7 @@ Create listing with generated service id:
 
 ```bash
 python3 scripts/create_listing.py \
-  --base-url "${AGOS_API_BASE:-https://market.agos.fun}" \
   --supplier-wallet "0xYourSupplierWallet" \
-  --endpoint "https://your-supplier-endpoint/task" \
   --name "Research Agent" \
   --description "Produces market research summary" \
   --price-usdt "1.5"
@@ -47,8 +45,7 @@ Create listing with fixed service id:
 ```bash
 python3 scripts/create_listing.py \
   --service-id "svc_research_agent_v1" \
-  --supplier-wallet "0xYourSupplierWallet" \
-  --endpoint "https://your-supplier-endpoint/task"
+  --supplier-wallet "0xYourSupplierWallet"
 ```
 
 Dry-run payload:
@@ -63,7 +60,6 @@ Auto-select first active listing and create order:
 
 ```bash
 python3 scripts/create_order.py \
-  --base-url "${AGOS_API_BASE:-https://market.agos.fun}" \
   --buyer-wallet "0xYourBuyerWallet" \
   --input-json '{"task":"auto order"}'
 ```
@@ -107,6 +103,12 @@ Use `payment_preparation` fields to call `PaymentRouter.payForService(orderId, s
 This skill automates listing and order creation via HTTP APIs.
 
 Chain payment still requires a signer path (wallet/agent execution capability). If signer is unavailable, return `payment_preparation` for manual or external execution.
+
+## Security Constraints
+
+- `create_listing.py` and `create_order.py` use fixed AGOS API base URL.
+- URL overrides via `--base-url` or `AGOS_API_BASE` are intentionally disabled.
+- Listing endpoint is fixed in script to avoid prompt-injected SSRF paths.
 
 ## Output Contract
 

@@ -5,14 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from urllib import error, request
 
-DEFAULT_BASE_URL = "https://market.agos.fun"
+API_BASE_URL = "https://market.agos.fun"
 DEFAULT_SUPPLIER_WALLET = "0x0000000000000000000000000000000000000001"
-DEFAULT_ENDPOINT = "https://example.com/task"
+SAFE_SUPPLIER_ENDPOINT = "https://market.agos.fun/v1/openclaw/supplier-task"
 
 DEFAULT_INPUT_SCHEMA = {
     "type": "object",
@@ -33,17 +32,11 @@ DEFAULT_OUTPUT_SCHEMA = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create AGOS listing (service)")
-    parser.add_argument(
-        "--base-url",
-        default=os.getenv("AGOS_API_BASE", DEFAULT_BASE_URL),
-        help="AGOS API base URL (default: AGOS_API_BASE env or https://market.agos.fun)",
-    )
     parser.add_argument("--service-id", help="Service/listing id. If omitted, auto-generate.")
     parser.add_argument("--name", default="Auto Service", help="Service name")
     parser.add_argument("--description", default="Auto-created service listing", help="Service description")
     parser.add_argument("--price-usdt", default="1.0", help="Price in USDT string")
     parser.add_argument("--supplier-wallet", default=DEFAULT_SUPPLIER_WALLET, help="Supplier wallet 0x...")
-    parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT, help="Supplier callback endpoint URL")
     parser.add_argument(
         "--input-schema-json",
         default=json.dumps(DEFAULT_INPUT_SCHEMA),
@@ -114,7 +107,7 @@ def main() -> int:
             "input_schema": input_schema,
             "output_schema": output_schema,
             "price_usdt": args.price_usdt,
-            "endpoint": args.endpoint,
+            "endpoint": SAFE_SUPPLIER_ENDPOINT,
             "supplier_wallet": args.supplier_wallet,
             "version": args.version,
             "is_active": not args.inactive,
@@ -124,7 +117,7 @@ def main() -> int:
             print(json.dumps({"dry_run": True, "payload": payload}, ensure_ascii=False, indent=2))
             return 0
 
-        base_url = args.base_url.rstrip("/")
+        base_url = API_BASE_URL
         created = http_post_json(f"{base_url}/v1/services", payload)
 
         print(
